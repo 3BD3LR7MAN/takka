@@ -1,0 +1,6 @@
+# Copy this file to key.properties and replace every placeholder.
+# key.properties is ignored by Git and must never be committed.
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=../takka-release.jks
