@@ -16,18 +16,6 @@ Takka is an Android-first Flutter application for managing a daily schedule thro
 - Takka vector mascot with state-specific moods.
 - Light, dark, and system themes.
 
-## Quick start
-
-```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-flutter analyze
-flutter test
-flutter build apk --release
-```
-
-The local release build uses the debug signing configuration when no private keystore is configured. Use the GitHub Actions workflow for a production-signed artifact. Read [docs/BUILD.md](docs/BUILD.md), [docs/RELEASE.md](docs/RELEASE.md), and [docs/GITHUB_SIGNING.md](docs/GITHUB_SIGNING.md) before distributing an APK.
-
 ## Documentation
 
 Read the complete engineering documentation in [docs/README.md](docs/README.md). The most useful starting points are:
