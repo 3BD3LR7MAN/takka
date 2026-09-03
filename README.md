@@ -44,7 +44,7 @@ Never commit API keys, signing passwords, `key.properties`, `.jks` files, `.keys
 
 ## Project identity
 
-The source package name remains `time_manager` for compatibility. The user-facing application name is **Takka**. The Android application ID is currently `com.example.time_manager`; changing it after distribution requires a deliberate migration.
+The Dart package name is `takka`, the user-facing application name is **Takka**, and the Android application ID is `com.example.takka`.
 
 ## License
 

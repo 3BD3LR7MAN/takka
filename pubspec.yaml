@@ -1,4 +1,4 @@
-name: time_manager
+name: takka
 description: AI Daily Schedule Assistant — local-first timeline scheduler with Arabic support.
 publish_to: 'none'
 version: 1.0.0+1

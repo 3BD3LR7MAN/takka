@@ -201,7 +201,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _open() => LazyDatabase(() async {
       final dir = await getApplicationDocumentsDirectory();
       return NativeDatabase.createInBackground(
-          File(p.join(dir.path, 'time_manager.sqlite')));
+          File(p.join(dir.path, 'takka.sqlite')));
     });
 
 class PendingReschedule {

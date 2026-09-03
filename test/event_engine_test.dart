@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:time_manager/data/db.dart';
-import 'package:time_manager/domain/event_engine.dart';
-import 'package:time_manager/features/ai/ai_service.dart';
-import 'package:time_manager/features/calendar/calendar_screen.dart';
+import 'package:takka/data/db.dart';
+import 'package:takka/domain/event_engine.dart';
+import 'package:takka/features/ai/ai_service.dart';
+import 'package:takka/features/calendar/calendar_screen.dart';
 
 Event ev(String id, DateTime s, DateTime e, {bool allDay = false}) => Event(
       id: id,

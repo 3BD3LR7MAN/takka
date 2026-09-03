@@ -30,7 +30,7 @@ A clean validation run must have no analyzer errors, all tests passing, and a su
 
 ## Project identity
 
-The Dart package name remains `time_manager` for source/package compatibility. The user-facing Android and Flutter application name is `Takka`. Changing the Android application ID would be a separate migration and should not be done casually after distribution.
+The Dart package name is `takka`, the user-facing Android and Flutter application name is `Takka`, and the Android application ID is `com.example.takka`.
 
 ## References
 

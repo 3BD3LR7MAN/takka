@@ -51,7 +51,7 @@ Future<void> main() async {
         if (initialLocale != null)
           appLocaleProvider.overrideWith((ref) => initialLocale),
       ],
-      child: TimeManagerApp(repo: repo),
+      child: TakkaApp(repo: repo),
     ),
   );
 }
@@ -65,15 +65,15 @@ Future<void> rescheduleNotifications() async {
   await NotificationService.instance.reschedulePending(db);
 }
 
-class TimeManagerApp extends ConsumerStatefulWidget {
-  const TimeManagerApp({super.key, required this.repo});
+class TakkaApp extends ConsumerStatefulWidget {
+  const TakkaApp({super.key, required this.repo});
   final EventRepository repo;
 
   @override
-  ConsumerState<TimeManagerApp> createState() => _TimeManagerAppState();
+  ConsumerState<TakkaApp> createState() => _TakkaAppState();
 }
 
-class _TimeManagerAppState extends ConsumerState<TimeManagerApp>
+class _TakkaAppState extends ConsumerState<TakkaApp>
     with WidgetsBindingObserver {
   @override
   void initState() {

@@ -1,4 +1,4 @@
-package com.example.time_manager
+package com.example.takka
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
