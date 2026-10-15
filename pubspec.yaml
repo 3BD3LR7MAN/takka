@@ -30,7 +30,7 @@ dependencies:
 
   # AI layer (spec H/K/M)
   http: ^1.2.2
-  speech_to_text: ^7.5.0
+  speech_to_text: ^6.6.2
   connectivity_plus: ^6.0.5
   flutter_secure_storage: ^10.3.1
   package_info_plus: ^8.3.1
