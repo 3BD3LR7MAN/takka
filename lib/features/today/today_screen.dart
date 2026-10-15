@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/l10n.dart';
+import '../../core/sound_service.dart';
 import '../../data/db.dart';
 import '../../data/repositories.dart' show dayOnly;
 import '../../domain/event_engine.dart';
@@ -97,21 +98,35 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ),
         actions: [
           IconButton(
-              tooltip: s.previousDay,
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () => _jumpBy(-1)),
+            tooltip: s.previousDay,
+            icon: Icon(lang == 'ar'
+                ? Icons.chevron_right_rounded
+                : Icons.chevron_left_rounded),
+            onPressed: () {
+              SoundService.instance.playClick();
+              _jumpBy(-1);
+            },
+          ),
           IconButton(
-              tooltip: s.nextDay,
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () => _jumpBy(1)),
+            tooltip: s.nextDay,
+            icon: Icon(lang == 'ar'
+                ? Icons.chevron_left_rounded
+                : Icons.chevron_right_rounded),
+            onPressed: () {
+              SoundService.instance.playClick();
+              _jumpBy(1);
+            },
+          ),
           IconButton(
-              tooltip: s.calendar,
-              icon: const Icon(Icons.calendar_month),
-              onPressed: () => context.go('/calendar')),
+            tooltip: s.calendar,
+            icon: const Icon(Icons.calendar_month_rounded),
+            onPressed: () => context.go('/calendar'),
+          ),
           IconButton(
-              tooltip: s.askAi,
-              icon: const Icon(Icons.auto_awesome),
-              onPressed: () => context.push('/ai')),
+            tooltip: s.askAi,
+            icon: const Icon(Icons.auto_awesome_rounded),
+            onPressed: () => context.push('/ai'),
+          ),
           const SizedBox(width: 4),
         ],
       ),
@@ -125,9 +140,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             DayTimeline(day: _base.add(Duration(days: page - _middlePage))),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(
-            '/event/add?date=${DateFormat('yyyy-MM-dd').format(date)}'),
-        child: const Icon(Icons.add),
+        onPressed: () {
+          SoundService.instance.playClick();
+          context.push(
+              '/event/add?date=${DateFormat('yyyy-MM-dd').format(date)}');
+        },
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }

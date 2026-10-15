@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
@@ -48,11 +49,28 @@ class WidgetUpdater {
         }
       }
 
+      final eventsPayload = timed.map((e) => {
+        'id': e.id,
+        'title': e.title,
+        'start': e.startDt,
+        'end': e.endDt,
+        'isAllDay': e.isAllDay,
+        'location': e.location ?? '',
+        'category': e.category,
+        'importance': e.importance,
+      }).toList();
+
+      final eventsJson = jsonEncode(eventsPayload);
+
+      await HomeWidget.saveWidgetData<String>('next_events_json', eventsJson);
+      await HomeWidget.saveWidgetData<String>('app_locale', lang);
       await HomeWidget.saveWidgetData<String>('next_up_badge', badge);
       await HomeWidget.saveWidgetData<String>('next_up_title', title);
       await HomeWidget.saveWidgetData<String>('next_up_time', time);
       await HomeWidget.updateWidget(
+        name: androidWidget,
         androidName: androidWidget,
+        qualifiedAndroidName: 'com.example.takka.NextUpWidgetProvider',
         iOSName: 'NextUpWidget',
       );
     } catch (_) {

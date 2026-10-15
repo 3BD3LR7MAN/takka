@@ -200,4 +200,22 @@ class AppStrings {
   String get testIn15 => _t('Test scheduling (fires in 15 seconds)', 'اختبار الجدولة (يظهر بعد 15 ثانية)');
   String get testHint => _t('Minimize the app (do NOT close it) and wait 15–20 seconds.', 'صغّر التطبيق (لا تُغلقه) وانتظر 15–20 ثانية.');
   String get doneMsg => _t('Done', 'تم');
+
+  // Sounds & Alarm Mode
+  String get soundAndAlerts => _t('SOUNDS & ALARMS', 'الأصوات والمنبه');
+  String get soundEffects => _t('Sound effects', 'المؤثرات الصوتية');
+  String get soundEffectsSubtitle => _t('Audio feedback for tasks, mascot & saving', 'تأثيرات صوتية للمهام والتكة والحفظ');
+  String get soundThemeTitle => _t('Sound theme', 'نمط المؤثرات الصوتية');
+  String get reminderRingtone => _t('Reminder ringtone', 'نغمة التذكير');
+  String get ringtoneSubtitle => _t('Custom melody for reminders and alarms', 'نغمة مخصصة للتذكيرات والمنبه');
+  String get alarmMode => _t('Alarm mode', 'وضع المنبه');
+  String get alarmModeSubtitle => _t('Rings continuously with snooze until dismissed', 'رنين مستمر مع خيار الغفوة حتى الإلغاء');
+  String get snoozeDuration => _t('Snooze duration', 'مدة الغفوة');
+  String get snoozeAction => _t('Snooze', 'غفوة');
+  String get dismissAction => _t('Dismiss', 'إيقاف');
+  String get preview => _t('Preview', 'معاينة');
+  String get stop => _t('Stop', 'إيقاف');
+  String get testAlarmNow => _t('Test Alarm Mode now', 'تجربة وضع المنبه الآن');
+  String get isAlarmEvent => _t('Set as Alarm', 'تعيين كمنبه');
+  String get alarmActiveBanner => _t('ALARM RINGING', 'المنبه يرن الآن');
 }

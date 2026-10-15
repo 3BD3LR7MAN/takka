@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/l10n.dart';
+import '../../core/sound_service.dart';
 import '../../data/db.dart';
 import '../../data/notification_service.dart';
 import '../../data/repositories.dart';
+import 'event_card.dart';
 import 'providers.dart';
 
 class EventDetailsScreen extends ConsumerWidget {
@@ -49,6 +51,7 @@ class EventDetailsScreen extends ConsumerWidget {
 
         final start = DateTime.fromMillisecondsSinceEpoch(e.startDt);
         final end = DateTime.fromMillisecondsSinceEpoch(e.endDt);
+        final scheme = Theme.of(context).colorScheme;
 
         return Scaffold(
           appBar: AppBar(
@@ -70,29 +73,47 @@ class EventDetailsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               ListTile(
-                leading: const Icon(Icons.schedule),
+                leading: const Icon(Icons.schedule_rounded),
                 title: Text(e.isAllDay
                     ? '${s.allDay} • ${fmtShortDate(start, lang)}'
-                    : '${fmtDateTime(start, lang)} ← ${fmtDateTime(end, lang)}'),
+                    : '${fmtDateTime(start, lang)} – ${fmtDateTime(end, lang)}'),
               ),
               ListTile(
-                leading: const Icon(Icons.category),
+                leading: Icon(getCategoryIcon(e.category),
+                    color: categoryColors[e.category] ?? scheme.primary),
                 title: Text(s.categoryName(e.category)),
               ),
               ListTile(
-                leading: const Icon(Icons.flag),
+                leading: Icon(
+                  e.importance == 'critical'
+                      ? Icons.alarm
+                      : (e.importance == 'important'
+                          ? Icons.star_rounded
+                          : Icons.flag_rounded),
+                  color: e.importance == 'critical'
+                      ? Colors.red
+                      : (e.importance == 'important'
+                          ? Colors.orange
+                          : scheme.primary),
+                ),
                 title: Text(
                     '${s.importance}: ${s.importanceName(e.importance)}'),
               ),
               if (e.location != null && e.location!.isNotEmpty)
                 ListTile(
-                    leading: const Icon(Icons.place), title: Text(e.location!)),
+                    leading: const Icon(Icons.place_rounded),
+                    title: Text(e.location!)),
               if (e.description != null && e.description!.isNotEmpty)
                 ListTile(
-                    leading: const Icon(Icons.notes),
+                    leading: const Icon(Icons.notes_rounded),
                     title: Text(e.description!)),
               ListTile(
-                leading: const Icon(Icons.source),
+                leading: Icon(
+                  e.source == 'ai'
+                      ? Icons.auto_awesome
+                      : Icons.edit_note_rounded,
+                  color: e.source == 'ai' ? Colors.deepPurple : scheme.primary,
+                ),
                 title: Text(e.source == 'ai' ? s.addedByAi : s.addedManually),
               ),
               const SizedBox(height: 8),
@@ -101,12 +122,32 @@ class EventDetailsScreen extends ConsumerWidget {
               _RemindersList(event: e),
               Card(
                 child: ListTile(
-                  leading: const Icon(Icons.notifications_active),
+                  leading: const Icon(Icons.notifications_active_rounded),
                   title: Text(s.testNotification),
                   subtitle: Text(s.testNotificationHint),
-                  trailing: const Icon(Icons.play_arrow),
-                  onTap: () => NotificationService.instance
-                      .showTest(e.title, importance: e.importance),
+                  trailing: const Icon(Icons.play_circle_outline_rounded),
+                  onTap: () {
+                    SoundService.instance.playClick();
+                    NotificationService.instance
+                        .showTest(e.title, importance: e.importance);
+                  },
+                ),
+              ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.alarm_on_rounded, color: Colors.red),
+                  title: Text(s.testAlarmNow),
+                  subtitle: Text(s.alarmModeSubtitle),
+                  trailing: const Icon(Icons.play_circle_fill_rounded, color: Colors.red),
+                  onTap: () {
+                    SoundService.instance.triggerAlarm(
+                      eventId: e.id,
+                      title: e.title,
+                      location: e.location,
+                      time: start,
+                      importance: e.importance,
+                    );
+                  },
                 ),
               ),
               if (!NotificationService.instance.exactAlarmsGranted)

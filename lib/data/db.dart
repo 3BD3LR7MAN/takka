@@ -1,9 +1,5 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'connection/connection.dart';
 
 part 'db.g.dart';
 
@@ -58,7 +54,7 @@ class Tasks extends Table {
 
 @DriftDatabase(tables: [Events, Reminders, ScheduledNotifications, Tasks])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_open());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 2;
@@ -198,11 +194,7 @@ class AppDatabase extends _$AppDatabase {
       (delete(tasks)..where((t) => t.id.equals(id))).go();
 }
 
-LazyDatabase _open() => LazyDatabase(() async {
-      final dir = await getApplicationDocumentsDirectory();
-      return NativeDatabase.createInBackground(
-          File(p.join(dir.path, 'takka.sqlite')));
-    });
+
 
 class PendingReschedule {
   final int androidNotifId;

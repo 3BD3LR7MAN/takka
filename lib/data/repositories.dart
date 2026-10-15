@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'db.dart';
 import 'notification_service.dart';
 import 'widget_updater.dart';
+import '../core/sound_service.dart';
 
 final databaseProvider =
     Provider<AppDatabase>((ref) => throw UnimplementedError());
@@ -85,6 +86,7 @@ class EventRepository {
 
     await NotificationService.instance.rescheduleEvent(eventId, this);
     await WidgetUpdater.refresh(this);
+    SoundService.instance.playEventSaved();
     return eventId;
   }
 
@@ -92,6 +94,7 @@ class EventRepository {
     await NotificationService.instance.cancelForEvent(id, this);
     await db.deleteEvent(id);
     await WidgetUpdater.refresh(this);
+    SoundService.instance.playDelete();
   }
 
   // ── Tasks ─────────────────────────────────────────────────
@@ -104,15 +107,31 @@ class EventRepository {
         includeUndated: isToday);
   }
 
-  Future<void> addTask({required String title, DateTime? due}) =>
-      db.insertTask(TasksCompanion.insert(
-        id: _uuid.v4(),
-        title: title,
-        dueDate: Value(due?.toUtc().millisecondsSinceEpoch),
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-      ));
+  Future<void> addTask({required String title, DateTime? due}) async {
+    await db.insertTask(TasksCompanion.insert(
+      id: _uuid.v4(),
+      title: title,
+      dueDate: Value(due?.toUtc().millisecondsSinceEpoch),
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    await WidgetUpdater.refresh(this);
+    SoundService.instance.playClick();
+  }
 
-  Future<void> toggleTask(Task t) => db.setTaskDone(t.id, !t.done);
+  Future<void> toggleTask(Task t) async {
+    final newDone = !t.done;
+    await db.setTaskDone(t.id, newDone);
+    await WidgetUpdater.refresh(this);
+    if (newDone) {
+      SoundService.instance.playTaskDone();
+    } else {
+      SoundService.instance.playClick();
+    }
+  }
 
-  Future<void> removeTask(String id) => db.deleteTask(id);
+  Future<void> removeTask(String id) async {
+    await db.deleteTask(id);
+    await WidgetUpdater.refresh(this);
+    SoundService.instance.playDelete();
+  }
 }

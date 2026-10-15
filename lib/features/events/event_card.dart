@@ -15,6 +15,20 @@ const categoryColors = {
   'other': Color(0xFF868E96),
 };
 
+const categoryIcons = {
+  'study': Icons.menu_book_rounded,
+  'work': Icons.work_rounded,
+  'personal': Icons.person_rounded,
+  'university': Icons.school_rounded,
+  'exercise': Icons.fitness_center_rounded,
+  'meeting': Icons.groups_rounded,
+  'important': Icons.star_rounded,
+  'other': Icons.label_rounded,
+};
+
+IconData getCategoryIcon(String category) =>
+    categoryIcons[category] ?? Icons.event_rounded;
+
 class EventCard extends StatelessWidget {
   const EventCard(
       {super.key, required this.event, required this.segment, this.onTap});
@@ -25,7 +39,10 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = categoryColors[event.category] ?? categoryColors['other']!;
+    final icon = getCategoryIcon(event.category);
     final lang = langOf(context);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+
     return Card(
       color: color.withOpacity(.14),
       margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
@@ -35,7 +52,7 @@ class EventCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: color, width: 4)),
+            border: BorderDirectional(start: BorderSide(color: color, width: 4)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Column(
@@ -44,23 +61,40 @@ class EventCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
                   if (segment.continuesFromPrevDay)
-                    const Icon(Icons.arrow_back, size: 12, color: Colors.grey),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 2),
+                      child: Icon(isRtl ? Icons.arrow_forward : Icons.arrow_back,
+                          size: 11, color: Colors.grey),
+                    ),
                   Expanded(
-                    child: Text(event.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, color: color)),
+                    child: Text(
+                      event.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: color,
+                      ),
+                    ),
                   ),
                   if (segment.continuesToNextDay)
-                    const Icon(Icons.arrow_forward,
-                        size: 12, color: Colors.grey),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: Icon(isRtl ? Icons.arrow_back : Icons.arrow_forward,
+                          size: 11, color: Colors.grey),
+                    ),
                   if (event.importance == 'critical')
-                    const Icon(Icons.priority_high,
-                        size: 14, color: Colors.red),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(Icons.alarm, size: 14, color: Colors.red),
+                    ),
                 ],
               ),
+              const SizedBox(height: 2),
               Text(
                 '${fmtTime(segment.start, lang)} – ${fmtTime(segment.end, lang)}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/l10n.dart';
 import '../../core/mascot/takka_mascot.dart';
+import '../../core/sound_service.dart';
 import '../../core/time_utils.dart';
 import '../../data/db.dart';
 import '../../data/repositories.dart';
@@ -341,10 +342,18 @@ class _AddEditEventSheetState extends ConsumerState<AddEditEventSheet> {
               children: [
                 for (final c in categories)
                   ChoiceChip(
+                    avatar: Icon(getCategoryIcon(c),
+                        size: 16,
+                        color: _category == c
+                            ? (categoryColors[c] ?? Colors.blue)
+                            : Colors.grey),
                     label: Text(s.categoryName(c)),
                     selected: _category == c,
-                    selectedColor: categoryColors[c]?.withOpacity(.3),
-                    onSelected: (_) => setState(() => _category = c),
+                    selectedColor: (categoryColors[c] ?? Colors.blue).withOpacity(.3),
+                    onSelected: (_) {
+                      SoundService.instance.playClick();
+                      setState(() => _category = c);
+                    },
                   ),
               ],
             ),
@@ -356,20 +365,66 @@ class _AddEditEventSheetState extends ConsumerState<AddEditEventSheet> {
               children: [
                 for (final r in reminderOffsets)
                   FilterChip(
+                    avatar: Icon(Icons.notifications_outlined, size: 16,
+                        color: _reminders.contains(r) ? Colors.blue : Colors.grey),
                     label: Text(r == 0 ? s.atStart : s.reminderBefore(r)),
                     selected: _reminders.contains(r),
-                    onSelected: (on) => setState(
-                        () => on ? _reminders.add(r) : _reminders.remove(r)),
+                    onSelected: (on) {
+                      SoundService.instance.playClick();
+                      setState(() => on ? _reminders.add(r) : _reminders.remove(r));
+                    },
                   ),
               ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _importance,
-              decoration: InputDecoration(labelText: s.importance),
+              decoration: InputDecoration(
+                labelText: s.importance,
+                prefixIcon: Icon(
+                  _importance == 'critical'
+                      ? Icons.alarm
+                      : (_importance == 'important'
+                          ? Icons.star_rounded
+                          : Icons.flag_rounded),
+                  color: _importance == 'critical'
+                      ? Colors.red
+                      : (_importance == 'important'
+                          ? Colors.orange
+                          : Colors.grey),
+                ),
+              ),
               items: [
-                for (final i in importances)
-                  DropdownMenuItem(value: i, child: Text(s.importanceName(i))),
+                DropdownMenuItem(
+                  value: 'normal',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(s.importanceName('normal')),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'important',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star_rounded, size: 18, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      Text(s.importanceName('important')),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'critical',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.alarm, size: 18, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Text('${s.importanceName('critical')} (${s.alarmMode})'),
+                    ],
+                  ),
+                ),
               ],
               onChanged: (v) => setState(() => _importance = v ?? 'normal'),
             ),
