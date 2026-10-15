@@ -194,6 +194,7 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
 
     companion object {
         const val ACTION_WIDGET_TICK = "com.example.takka.ACTION_WIDGET_TICK"
+        private const val ACTION_TIME_SET = "android.intent.action.TIME_SET"
         private const val ALARM_REQUEST_CODE = 44211
     }
 }
