@@ -24,7 +24,7 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
         if (action in listOf(
                 ACTION_WIDGET_TICK,
                 Intent.ACTION_BOOT_COMPLETED,
-                Intent.ACTION_TIME_SET,
+                ACTION_TIME_SET,
                 Intent.ACTION_TIMEZONE_CHANGED
             )
         ) {
