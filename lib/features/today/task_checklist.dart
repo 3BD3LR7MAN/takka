@@ -50,15 +50,22 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
               children: [
                 Icon(Icons.checklist_rounded, size: 18, color: scheme.primary),
                 const SizedBox(width: 8),
-                Text(s.tasks,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(
+                  s.tasks,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
                 const Spacer(),
                 async.maybeWhen(
                   data: (tasks) => Text(
-                      '${tasks.where((t) => t.done).length}/${tasks.length}',
-                      style: TextStyle(
-                          fontSize: 12, color: scheme.onSurfaceVariant)),
+                    '${tasks.where((t) => t.done).length}/${tasks.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                   orElse: () => const SizedBox.shrink(),
                 ),
               ],
@@ -69,8 +76,18 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
               data: (tasks) => Column(
                 children: [
                   if (tasks.isNotEmpty && tasks.every((x) => x.done)) ...[
-                    const Center(child: TakkaMascot(mood: TakkaMood.happy, size: 90)),
-                    Center(child: Text(s.takkaHappy, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                    const Center(
+                      child: TakkaMascot(mood: TakkaMood.happy, size: 90),
+                    ),
+                    Center(
+                      child: Text(
+                        s.takkaHappy,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
                   ],
                   for (final t in tasks)
                     CheckboxListTile(
@@ -88,11 +105,13 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
                         ),
                       ),
                       subtitle: t.dueDate == null
-                          ? Text(s.noDate,
-                              style: const TextStyle(fontSize: 11))
+                          ? Text(s.noDate, style: const TextStyle(fontSize: 11))
                           : null,
                       secondary: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                        ),
                         onPressed: () => repo.removeTask(t.id),
                       ),
                     ),

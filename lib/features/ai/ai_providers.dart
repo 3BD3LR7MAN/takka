@@ -6,7 +6,15 @@ import 'package:http/http.dart' as http;
 import 'ai_service.dart';
 import 'ai_models.dart';
 
-enum AiProviderKind { gemini, groq, openRouter, mistral, deepseek, together, compatible }
+enum AiProviderKind {
+  gemini,
+  groq,
+  openRouter,
+  mistral,
+  deepseek,
+  together,
+  compatible,
+}
 
 class AiConfig {
   final AiProviderKind kind;
@@ -24,7 +32,8 @@ class AiConfig {
   static AiConfig defaultFor(AiProviderKind k) => defaultsFor(k);
 
   static AiConfig defaultsFor(AiProviderKind k) => AiConfig(
-        kind: k, apiKey: '',
+        kind: k,
+        apiKey: '',
         model: switch (k) {
           AiProviderKind.gemini => 'gemini-2.5-flash',
           AiProviderKind.groq => 'llama-3.3-70b-versatile',
@@ -35,7 +44,8 @@ class AiConfig {
           AiProviderKind.compatible => '',
         },
         baseUrl: switch (k) {
-          AiProviderKind.gemini => 'https://generativelanguage.googleapis.com/v1beta/openai/',
+          AiProviderKind.gemini =>
+            'https://generativelanguage.googleapis.com/v1beta/openai/',
           AiProviderKind.groq => 'https://api.groq.com/openai/v1/',
           AiProviderKind.openRouter => 'https://openrouter.ai/api/v1/',
           AiProviderKind.mistral => 'https://api.mistral.ai/v1/',
@@ -89,14 +99,20 @@ class AiConfig {
 }
 
 String providerDisplayName(AiProviderKind k) => switch (k) {
-      AiProviderKind.gemini => 'Google Gemini', AiProviderKind.groq => 'Groq',
-      AiProviderKind.openRouter => 'OpenRouter', AiProviderKind.mistral => 'Mistral',
-      AiProviderKind.deepseek => 'DeepSeek', AiProviderKind.together => 'Together',
+      AiProviderKind.gemini => 'Google Gemini',
+      AiProviderKind.groq => 'Groq',
+      AiProviderKind.openRouter => 'OpenRouter',
+      AiProviderKind.mistral => 'Mistral',
+      AiProviderKind.deepseek => 'DeepSeek',
+      AiProviderKind.together => 'Together',
       AiProviderKind.compatible => 'OpenAI-Compatible API',
     };
 
 AiService createAiService(AiConfig cfg) => OpenAiCompatibleProvider(
-      apiKey: cfg.apiKey, model: cfg.model, baseUrl: cfg.baseUrl);
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      baseUrl: cfg.baseUrl,
+    );
 
 // ─────── OpenAI-compatible (OpenAI / Groq / OpenRouter / Ollama) ──────
 
@@ -118,10 +134,14 @@ class OpenAiCompatibleProvider implements AiService {
         if (apiKey.trim().isNotEmpty) 'Authorization': 'Bearer $apiKey',
       };
 
-  Future<String> _complete(String system, String user,
-      {bool jsonMode = true}) async {
-    final uri =
-        Uri.parse('${baseUrl.replaceAll(RegExp(r'/$'), '')}/chat/completions');
+  Future<String> _complete(
+    String system,
+    String user, {
+    bool jsonMode = true,
+  }) async {
+    final uri = Uri.parse(
+      '${baseUrl.replaceAll(RegExp(r'/$'), '')}/chat/completions',
+    );
     final body = <String, dynamic>{
       'model': model,
       'temperature': 0.1,
@@ -159,9 +179,11 @@ class OpenAiCompatibleProvider implements AiService {
   }
 
   @override
-  Future<String> chat(String message) =>
-      _complete('You are a helpful scheduling assistant.', message,
-          jsonMode: false);
+  Future<String> chat(String message) => _complete(
+        'You are a helpful scheduling assistant.',
+        message,
+        jsonMode: false,
+      );
 }
 
 // ───────────────────────────── Anthropic ──────────────────────────────
@@ -182,22 +204,24 @@ class AnthropicProvider implements AiService {
   @override
   Future<AiExtractionResult> extractEvents(AiRequest request) async {
     final uri = Uri.parse('${baseUrl.replaceAll(RegExp(r'/$'), '')}/messages');
-    final res = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: jsonEncode({
-        'model': model,
-        'max_tokens': 2048,
-        'system': buildSystemPrompt(request),
-        'messages': [
-          {'role': 'user', 'content': request.text},
-        ],
-      }),
-    ).timeout(const Duration(seconds: 60));
+    final res = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: jsonEncode({
+            'model': model,
+            'max_tokens': 2048,
+            'system': buildSystemPrompt(request),
+            'messages': [
+              {'role': 'user', 'content': request.text},
+            ],
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
 
     if (res.statusCode != 200) {
       throw AiProviderException('HTTP ${res.statusCode}: ${res.body}');
@@ -210,21 +234,23 @@ class AnthropicProvider implements AiService {
   @override
   Future<String> chat(String message) async {
     final uri = Uri.parse('${baseUrl.replaceAll(RegExp(r'/$'), '')}/messages');
-    final res = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: jsonEncode({
-        'model': model,
-        'max_tokens': 1024,
-        'messages': [
-          {'role': 'user', 'content': message},
-        ],
-      }),
-    ).timeout(const Duration(seconds: 60));
+    final res = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: jsonEncode({
+            'model': model,
+            'max_tokens': 1024,
+            'messages': [
+              {'role': 'user', 'content': message},
+            ],
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     final data = jsonDecode(res.body);
     return (data['content'] as List).first['text'] as String;
   }

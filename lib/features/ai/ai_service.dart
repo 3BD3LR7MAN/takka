@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../data/db.dart';
 import 'ai_models.dart';
 
 class AiRequest {
@@ -26,6 +27,7 @@ class AiProviderException implements Exception {
 abstract class AiService {
   String get providerName;
   Future<AiExtractionResult> extractEvents(AiRequest request);
+
   /// Phase 2: محادثة مع استدعاء أدوات (create/update/delete/search/getFreeSlots)
   Future<String> chat(String message);
 }
@@ -55,6 +57,24 @@ const aiSchemaJson = '''
       "dueDate": "YYYY-MM-DD or null"
     }
   ],
+  "updates": [
+    {
+      "matchTitle": "exact existing title from context",
+      "kind": "event|task",
+      "newTitle": "string",
+      "newStartDate": "YYYY-MM-DD",
+      "newStartTime": "HH:mm",
+      "newEndDate": "YYYY-MM-DD",
+      "newEndTime": "HH:mm",
+      "newCategory": "study|work|personal|university|exercise|meeting|important|other",
+      "newImportance": "normal|important|critical",
+      "newLocation": "string",
+      "reminders": [10, 60]
+    }
+  ],
+  "deletes": [
+    {"matchTitle": "exact existing title from context", "kind": "event|task"}
+  ],
   "ambiguities": ["string"]
 }
 ''';
@@ -76,7 +96,10 @@ RULES:
 7. REMINDERS: only if the user explicitly asks (e.g. "ذكرني قبلها بـ10 دقائق", "remind me an hour before") → "reminders": [minutes before start]. Never invent reminders. The app automatically adds an at-start notification, so do NOT add 0.
 8. IMPORTANCE: set "important" or "critical" ONLY if the user emphasizes it ("مهم جدًا", "حاسم", "لا يفوتني", "critical"). Otherwise "normal".
 9. TASKS: todo items WITHOUT a specific clock time (shopping, studying a chapter, calls to make) go into "tasks" — not "events". If the item HAS a specific time, it is an event. dueDate only if the user stated a day; otherwise null.
-10. Return ONLY valid JSON matching this schema — no prose, no markdown fences:
+10. To modify an existing event or task, emit an "updates" entry whose matchTitle is the EXACT title from the context. Never invent IDs. Include a full date when changing a date or time.
+11. To remove an existing event or task, emit a "deletes" entry with its exact context title. If more than one record could match, report an ambiguity and do not guess.
+12. Updates may change only title, start/end date or time, category, importance, location, or reminders. Omit unchanged fields. For tasks, only title updates are supported.
+13. Return ONLY valid JSON matching this schema — no prose, no markdown fences:
 $aiSchemaJson
 ''';
 
@@ -98,12 +121,15 @@ AiExtractionResult validateAiJson(String raw) {
   try {
     json = jsonDecode(stripJsonFences(raw)) as Map<String, dynamic>;
   } catch (_) {
-    return AiExtractionResult(
-        const [], ['AI returned invalid JSON — please try rephrasing.']);
+    return const AiExtractionResult([], [
+      'AI returned invalid JSON — please try rephrasing.',
+    ]);
   }
 
   final events = <ProposedEvent>[];
   final tasks = <ProposedTask>[];
+  final updates = <ProposedUpdate>[];
+  final deletes = <ProposedDelete>[];
   final ambiguities = <String>[
     ...(json['ambiguities'] as List? ?? const []).map((e) => '$e'),
   ];
@@ -120,7 +146,9 @@ AiExtractionResult validateAiJson(String raw) {
     DateTime? end = _parse(m['endDate'] ?? m['startDate'], m['endTime']);
     final rawTime = m['startTime'];
     final timeMissing = (m['timeMissing'] as bool? ?? false) ||
-        rawTime == null || '$rawTime'.trim().isEmpty || start == null;
+        rawTime == null ||
+        '$rawTime'.trim().isEmpty ||
+        start == null;
 
     if (start != null && end != null && end.isBefore(start)) {
       end = start.add(const Duration(hours: 1));
@@ -137,19 +165,21 @@ AiExtractionResult validateAiJson(String raw) {
     final String importance =
         (imp == 'important' || imp == 'critical') ? imp! : 'normal';
 
-    events.add(ProposedEvent(
-      title: title.trim(),
-      start: start,
-      end: end ?? start?.add(const Duration(hours: 1)),
-      isAllDay: m['isAllDay'] as bool? ?? false,
-      category: m['category'] as String? ?? 'other',
-      description: m['description'] as String?,
-      location: m['location'] as String?,
-      timeMissing: timeMissing,
-      suggested: m['suggested'] as bool? ?? false,
-      reminders: reminders.toList()..sort(),
-      importance: importance,
-    ));
+    events.add(
+      ProposedEvent(
+        title: title.trim(),
+        start: start,
+        end: end ?? start?.add(const Duration(hours: 1)),
+        isAllDay: m['isAllDay'] as bool? ?? false,
+        category: m['category'] as String? ?? 'other',
+        description: m['description'] as String?,
+        location: m['location'] as String?,
+        timeMissing: timeMissing,
+        suggested: m['suggested'] as bool? ?? false,
+        reminders: reminders.toList()..sort(),
+        importance: importance,
+      ),
+    );
   }
 
   // ── المهام ──
@@ -159,8 +189,7 @@ AiExtractionResult validateAiJson(String raw) {
     if (title == null || title.trim().isEmpty) continue;
     DateTime? due;
     try {
-      final d =
-          m['dueDate'] == null ? null : DateTime.parse('${m['dueDate']}');
+      final d = m['dueDate'] == null ? null : DateTime.parse('${m['dueDate']}');
       due = d == null ? null : DateTime(d.year, d.month, d.day);
     } catch (_) {
       due = null;
@@ -168,7 +197,148 @@ AiExtractionResult validateAiJson(String raw) {
     tasks.add(ProposedTask(title: title.trim(), dueDate: due));
   }
 
-  return AiExtractionResult(events, ambiguities, tasks: tasks);
+  for (final item in (json['updates'] as List? ?? const [])) {
+    if (item is! Map<String, dynamic>) continue;
+    final matchTitle = item['matchTitle'] as String?;
+    if (matchTitle == null || matchTitle.trim().isEmpty) continue;
+    final category = item['newCategory'] as String?;
+    final importance = item['newImportance'] as String?;
+    final reminders = item['reminders'] is List
+        ? ((item['reminders'] as List)
+            .map((value) => int.tryParse('$value'))
+            .whereType<int>()
+            .where((value) => value > 0 && value <= 4320)
+            .toSet()
+            .toList()
+          ..sort())
+        : null;
+    updates.add(
+      ProposedUpdate(
+        matchTitle: matchTitle.trim(),
+        kind: item['kind'] == 'task' ? 'task' : 'event',
+        newTitle: _nonEmptyString(item['newTitle']),
+        newCategory: const {
+          'study',
+          'work',
+          'personal',
+          'university',
+          'exercise',
+          'meeting',
+          'important',
+          'other',
+        }.contains(category)
+            ? category
+            : null,
+        newImportance:
+            const {'normal', 'important', 'critical'}.contains(importance)
+                ? importance
+                : null,
+        newLocation: _nonEmptyString(item['newLocation']),
+        newStart: _parse(item['newStartDate'], item['newStartTime']),
+        newEnd: _parse(item['newEndDate'], item['newEndTime']),
+        reminders: reminders,
+      ),
+    );
+  }
+
+  for (final item in (json['deletes'] as List? ?? const [])) {
+    if (item is! Map<String, dynamic>) continue;
+    final matchTitle = item['matchTitle'] as String?;
+    if (matchTitle == null || matchTitle.trim().isEmpty) continue;
+    deletes.add(
+      ProposedDelete(
+        matchTitle: matchTitle.trim(),
+        kind: item['kind'] == 'task' ? 'task' : 'event',
+      ),
+    );
+  }
+
+  return AiExtractionResult(
+    events,
+    ambiguities,
+    tasks: tasks,
+    updates: updates,
+    deletes: deletes,
+  );
+}
+
+String? _nonEmptyString(Object? value) {
+  if (value is! String || value.trim().isEmpty) return null;
+  return value.trim();
+}
+
+/// Resolve proposals only when one actual record has the exact title.
+/// Similar or duplicate titles stay unmatched and require a more specific request.
+void resolveEdits(
+  AiExtractionResult result,
+  List<Event> events,
+  List<Task> tasks,
+) {
+  List<T> matching<T>(
+    String title,
+    Iterable<T> records,
+    String Function(T) getTitle,
+  ) {
+    final needle = title.trim().toLowerCase();
+    return records
+        .where((record) => getTitle(record).trim().toLowerCase() == needle)
+        .toList();
+  }
+
+  for (final update in result.updates) {
+    if (update.kind == 'task') {
+      final matches = matching(update.matchTitle, tasks, (task) => task.title);
+      if (matches.length == 1) {
+        update.matchedId = matches.single.id;
+      } else if (matches.length > 1) {
+        result.ambiguities.add(
+          'More than one task is titled "${update.matchTitle}".',
+        );
+      }
+    } else {
+      final matches = matching(
+        update.matchTitle,
+        events,
+        (event) => event.title,
+      );
+      if (matches.length == 1) {
+        update.matchedId = matches.single.id;
+      } else if (matches.length > 1) {
+        result.ambiguities.add(
+          'More than one event is titled "${update.matchTitle}".',
+        );
+      }
+    }
+  }
+  for (final deletion in result.deletes) {
+    if (deletion.kind == 'task') {
+      final matches = matching(
+        deletion.matchTitle,
+        tasks,
+        (task) => task.title,
+      );
+      if (matches.length == 1) {
+        deletion.matchedId = matches.single.id;
+      } else if (matches.length > 1) {
+        result.ambiguities.add(
+          'More than one task is titled "${deletion.matchTitle}".',
+        );
+      }
+    } else {
+      final matches = matching(
+        deletion.matchTitle,
+        events,
+        (event) => event.title,
+      );
+      if (matches.length == 1) {
+        deletion.matchedId = matches.single.id;
+      } else if (matches.length > 1) {
+        result.ambiguities.add(
+          'More than one event is titled "${deletion.matchTitle}".',
+        );
+      }
+    }
+  }
 }
 
 DateTime? _parse(Object? date, Object? time) {

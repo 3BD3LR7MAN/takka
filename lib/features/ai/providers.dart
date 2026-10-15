@@ -14,15 +14,32 @@ final aiServiceProvider = Provider<AiService?>((ref) {
 });
 
 final connectivityProvider = StreamProvider<List<ConnectivityResult>>(
-    (ref) => Connectivity().onConnectivityChanged);
+  (ref) => Connectivity().onConnectivityChanged,
+);
 
 final proposedEventsProvider =
     StateNotifierProvider<ProposedEventsNotifier, List<ProposedEvent>>(
-        (_) => ProposedEventsNotifier());
+  (_) => ProposedEventsNotifier(),
+);
 
 final proposedTasksProvider =
     StateNotifierProvider<ProposedTasksNotifier, List<ProposedTask>>(
-        (_) => ProposedTasksNotifier());
+  (_) => ProposedTasksNotifier(),
+);
+
+final proposedUpdatesProvider =
+    StateNotifierProvider<ProposedUpdatesNotifier, List<ProposedUpdate>>(
+  (_) => ProposedUpdatesNotifier(),
+);
+
+final proposedDeletesProvider =
+    StateNotifierProvider<ProposedDeletesNotifier, List<ProposedDelete>>(
+  (_) => ProposedDeletesNotifier(),
+);
+
+final proposedAmbiguitiesProvider = StateProvider<List<String>>(
+  (ref) => const [],
+);
 
 class ProposedEventsNotifier extends StateNotifier<List<ProposedEvent>> {
   ProposedEventsNotifier() : super(const []);
@@ -32,6 +49,7 @@ class ProposedEventsNotifier extends StateNotifier<List<ProposedEvent>> {
     copy[i].selected = !copy[i].selected;
     state = copy;
   }
+
   void replace(int i, ProposedEvent e) {
     final copy = [...state];
     copy[i] = e;
@@ -47,9 +65,30 @@ class ProposedTasksNotifier extends StateNotifier<List<ProposedTask>> {
     copy[i].selected = !copy[i].selected;
     state = copy;
   }
+
   void replace(int i, ProposedTask t) {
     final copy = [...state];
     copy[i] = t;
+    state = copy;
+  }
+}
+
+class ProposedUpdatesNotifier extends StateNotifier<List<ProposedUpdate>> {
+  ProposedUpdatesNotifier() : super(const []);
+  void set(List<ProposedUpdate> value) => state = value;
+  void toggle(int i) {
+    final copy = [...state];
+    copy[i].selected = !copy[i].selected;
+    state = copy;
+  }
+}
+
+class ProposedDeletesNotifier extends StateNotifier<List<ProposedDelete>> {
+  ProposedDeletesNotifier() : super(const []);
+  void set(List<ProposedDelete> value) => state = value;
+  void toggle(int i) {
+    final copy = [...state];
+    copy[i].selected = !copy[i].selected;
     state = copy;
   }
 }

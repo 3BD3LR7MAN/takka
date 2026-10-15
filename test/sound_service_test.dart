@@ -18,7 +18,8 @@ void main() {
     expect(themeIds.contains('muted'), isTrue);
 
     // Verify presence of all expected ringtones
-    final ringtoneIds = SoundService.availableRingtones.map((r) => r['id']).toSet();
+    final ringtoneIds =
+        SoundService.availableRingtones.map((r) => r['id']).toSet();
     expect(ringtoneIds.contains('gentle_chime'), isTrue);
     expect(ringtoneIds.contains('digital_pulse'), isTrue);
     expect(ringtoneIds.contains('zen_bell'), isTrue);
@@ -43,8 +44,10 @@ void main() {
     expect(sound.activeAlarm.value?.title, 'Doctor Appointment');
     expect(sound.activeAlarm.value?.importance, 'critical');
 
-    sound.snoozeAlarm();
+    sound.snoozeAlarm(minutes: 1);
     expect(sound.activeAlarm.value, isNull);
+    sound
+        .dismissAlarm(); // cancel the pending in-process snooze timer in this test
 
     sound.triggerAlarm(
       eventId: 'evt-456',
