@@ -187,7 +187,7 @@ class _MonthPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
             color: total == 0
-                ? Colors.grey.withValues(alpha: .12)
+                ? Colors.grey.withOpacity(.12)
                 : scheme.primaryContainer,
             borderRadius: BorderRadius.circular(10),
           ),
@@ -277,7 +277,7 @@ class _MonthPage extends ConsumerWidget {
                               margin: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
                                 color: count > 0
-                                    ? scheme.primaryContainer.withValues(alpha: .45)
+                                    ? scheme.primaryContainer.withOpacity(.45)
                                     : null,
                                 border: isToday
                                     ? Border.all(
