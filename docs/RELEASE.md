@@ -11,7 +11,7 @@
 
 ## Current release status
 
-Takka v1.0.1 is version `1.0.1+2`. This release adds customizable action sounds, selectable reminder ringtones, Alarm Mode for critical events, improved Arabic RTL visuals, and live home-screen widget updates. A local release APK uses the Android debug-signing fallback when no production keystore is present in the workspace; it is suitable for development validation only and must not be distributed as a production artifact.
+Takka v1.0.14 is version `1.0.14+15`. This release adds GitHub Releases update checks, a weekly calendar view, and the native Android alarm reliability work. A local release APK uses the Android debug-signing fallback when no production keystore is present; it is suitable for development validation only and must not be distributed as a production artifact.
 
 The production-signed build is handled by `.github/workflows/android-release.yml`. It runs manually or when a `v*` tag is pushed and requires the four repository Actions secrets below. The workflow restores the keystore only on the ephemeral runner, builds the signed APK, uploads it as an artifact, and removes the temporary signing files during cleanup.
 

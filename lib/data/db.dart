@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+
 import 'connection/connection.dart';
 
 part 'db.g.dart';
@@ -16,6 +17,8 @@ class Events extends Table {
   TextColumn get source => text().withDefault(const Constant('manual'))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+  TextColumn get repeatRule => text().withDefault(const Constant('none'))();
+  IntColumn get repeatUntil => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -45,7 +48,8 @@ class Tasks extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
   BoolColumn get done => boolean().withDefault(const Constant(false))();
-  IntColumn get dueDate => integer().nullable()(); // epoch millis UTC — null = بدون تاريخ
+  IntColumn get dueDate =>
+      integer().nullable()(); // epoch millis UTC — null = بدون تاريخ
   IntColumn get createdAt => integer()();
 
   @override
@@ -57,32 +61,77 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
           await customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_events_range ON events(start_dt, end_dt)');
+            'CREATE INDEX IF NOT EXISTS idx_events_range ON events(start_dt, end_dt)',
+          );
         },
         onUpgrade: (m, from, to) async {
-          if (from < 2) await m.createAll(); // يُنشئ جدول tasks فقط
+          if (from < 2) {
+            await m.createTable(tasks);
+          }
+          if (from < 3) {
+            await customStatement(
+              "ALTER TABLE events ADD COLUMN repeat_rule TEXT NOT NULL DEFAULT 'none'",
+            );
+            await customStatement(
+              'ALTER TABLE events ADD COLUMN repeat_until INTEGER',
+            );
+          }
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_events_range ON events(start_dt, end_dt)',
+          );
         },
       );
 
   // ── Events ────────────────────────────────────────────────
   Stream<List<Event>> watchOverlapping(int startMs, int endMs) =>
       (select(events)
-            ..where((e) => e.startDt.isSmallerThanValue(endMs) &
-                e.endDt.isBiggerThanValue(startMs))
+            ..where(
+              (e) =>
+                  e.startDt.isSmallerThanValue(endMs) &
+                  e.endDt.isBiggerThanValue(startMs),
+            )
             ..orderBy([(e) => OrderingTerm.asc(e.startDt)]))
           .watch();
 
-  Future<List<Event>> getOverlapping(int startMs, int endMs) =>
+  Future<List<Event>> getOverlapping(int startMs, int endMs) => (select(events)
+        ..where(
+          (e) =>
+              e.startDt.isSmallerThanValue(endMs) &
+              e.endDt.isBiggerThanValue(startMs),
+        ))
+      .get();
+
+  Stream<List<Event>> watchMastersForRange(int startMs, int endMs) =>
       (select(events)
-            ..where((e) => e.startDt.isSmallerThanValue(endMs) &
-                e.endDt.isBiggerThanValue(startMs)))
+            ..where(
+              (e) =>
+                  e.startDt.isSmallerThanValue(endMs) &
+                  (e.endDt.isBiggerThanValue(startMs) |
+                      (e.repeatRule.isNotIn(const ['none', '']) &
+                          (e.repeatUntil.isNull() |
+                              e.repeatUntil.isBiggerOrEqualValue(startMs)))),
+            )
+            ..orderBy([(e) => OrderingTerm.asc(e.startDt)]))
+          .watch();
+
+  Future<List<Event>> getMastersForRange(int startMs, int endMs) =>
+      (select(events)
+            ..where(
+              (e) =>
+                  e.startDt.isSmallerThanValue(endMs) &
+                  (e.endDt.isBiggerThanValue(startMs) |
+                      (e.repeatRule.isNotIn(const ['none', '']) &
+                          (e.repeatUntil.isNull() |
+                              e.repeatUntil.isBiggerOrEqualValue(startMs)))),
+            )
+            ..orderBy([(e) => OrderingTerm.asc(e.startDt)]))
           .get();
 
   Stream<Event?> watchById(String id) =>
@@ -102,7 +151,9 @@ class AppDatabase extends _$AppDatabase {
       (select(reminders)..where((r) => r.eventId.equals(eventId))).get();
 
   Future<void> replaceReminders(
-      String eventId, List<RemindersCompanion> list) async {
+    String eventId,
+    List<RemindersCompanion> list,
+  ) async {
     await transaction(() async {
       await (delete(reminders)..where((r) => r.eventId.equals(eventId))).go();
       for (final r in list) {
@@ -117,8 +168,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<ScheduledNotifRow>> scheduledForEvent(String eventId) async {
     final query = select(scheduledNotifications).join([
-      innerJoin(reminders,
-          reminders.id.equalsExp(scheduledNotifications.reminderId)),
+      innerJoin(
+        reminders,
+        reminders.id.equalsExp(scheduledNotifications.reminderId),
+      ),
     ])
       ..where(reminders.eventId.equals(eventId));
     final rows = await query.get();
@@ -128,8 +181,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteScheduledForEvent(String eventId) async {
     final rows = await scheduledForEvent(eventId);
     if (rows.isEmpty) return;
-    await (delete(scheduledNotifications)
-          ..where((t) => t.id.isIn(rows.map((r) => r.id).toList())))
+    await (delete(
+      scheduledNotifications,
+    )..where((t) => t.id.isIn(rows.map((r) => r.id).toList())))
         .go();
   }
 
@@ -137,8 +191,10 @@ class AppDatabase extends _$AppDatabase {
   Future<List<PendingReschedule>> pendingReschedules() async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final query = select(scheduledNotifications).join([
-      innerJoin(reminders,
-          reminders.id.equalsExp(scheduledNotifications.reminderId)),
+      innerJoin(
+        reminders,
+        reminders.id.equalsExp(scheduledNotifications.reminderId),
+      ),
       innerJoin(events, events.id.equalsExp(reminders.eventId)),
     ])
       ..where(scheduledNotifications.triggerAt.isBiggerThanValue(now));
@@ -146,9 +202,11 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((row) {
       final n = row.readTable(scheduledNotifications);
       final e = row.readTable(events);
+      final r = row.readTable(reminders);
       return PendingReschedule(
         androidNotifId: n.androidNotifId,
         triggerAt: n.triggerAt,
+        offsetMinutes: r.offsetMinutes,
         eventId: e.id,
         title: e.title,
         startDt: e.startDt,
@@ -169,15 +227,20 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ── Tasks ─────────────────────────────────────────────────
-  Stream<List<Task>> watchTasksForDay(int dayStartMs, int dayEndMs,
-          {required bool includeUndated}) =>
+  Stream<List<Task>> watchTasksForDay(
+    int dayStartMs,
+    int dayEndMs, {
+    required bool includeUndated,
+  }) =>
       (select(tasks)
-            ..where((t) => includeUndated
-                ? (t.dueDate.isBiggerOrEqualValue(dayStartMs) &
-                        t.dueDate.isSmallerThanValue(dayEndMs)) |
-                    t.dueDate.isNull()
-                : t.dueDate.isBiggerOrEqualValue(dayStartMs) &
-                    t.dueDate.isSmallerThanValue(dayEndMs))
+            ..where(
+              (t) => includeUndated
+                  ? (t.dueDate.isBiggerOrEqualValue(dayStartMs) &
+                          t.dueDate.isSmallerThanValue(dayEndMs)) |
+                      t.dueDate.isNull()
+                  : t.dueDate.isBiggerOrEqualValue(dayStartMs) &
+                      t.dueDate.isSmallerThanValue(dayEndMs),
+            )
             ..orderBy([
               (t) => OrderingTerm.asc(t.done),
               (t) => OrderingTerm.asc(t.createdAt),
@@ -186,19 +249,24 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertTask(TasksCompanion t) => into(tasks).insert(t);
 
-  Future<void> setTaskDone(String id, bool done) =>
-      (update(tasks)..where((t) => t.id.equals(id)))
+  Future<void> setTaskDone(String id, bool done) => (update(
+        tasks,
+      )..where((t) => t.id.equals(id)))
           .write(TasksCompanion(done: Value(done)));
+
+  Future<void> renameTask(String id, String title) => (update(
+        tasks,
+      )..where((t) => t.id.equals(id)))
+          .write(TasksCompanion(title: Value(title)));
 
   Future<void> deleteTask(String id) =>
       (delete(tasks)..where((t) => t.id.equals(id))).go();
 }
 
-
-
 class PendingReschedule {
   final int androidNotifId;
   final int triggerAt;
+  final int offsetMinutes;
   final String eventId;
   final String title;
   final int startDt;
@@ -208,6 +276,7 @@ class PendingReschedule {
   const PendingReschedule({
     required this.androidNotifId,
     required this.triggerAt,
+    required this.offsetMinutes,
     required this.eventId,
     required this.title,
     required this.startDt,

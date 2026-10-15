@@ -8,15 +8,15 @@ import '../../data/db.dart';
 import '../../data/repositories.dart';
 import '../today/providers.dart';
 
-final monthEventsProvider = StreamProvider.family<List<Event>, DateTime>(
-  (ref, month) {
-    final db = ref.watch(databaseProvider);
-    final start = DateTime(month.year, month.month, 1);
-    final end = DateTime(month.year, month.month + 1, 1);
-    return db.watchOverlapping(
-        start.millisecondsSinceEpoch, end.millisecondsSinceEpoch);
-  },
-);
+final monthEventsProvider = StreamProvider.family<List<Event>, DateTime>((
+  ref,
+  month,
+) {
+  final repo = ref.watch(eventRepositoryProvider);
+  final start = DateTime(month.year, month.month, 1);
+  final end = DateTime(month.year, month.month + 1, 1);
+  return repo.watchExpanded(start, end);
+});
 
 /// تقاطعات حدث-يوم (مواصفة C.2): حدث 3 أيام يُحسب 3.
 Map<int, int> monthEventCounts(List<Event> events, DateTime month) {
@@ -82,8 +82,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     if (dist > 6) {
       _pages.jumpToPage(page);
     } else {
-      _pages.animateToPage(page,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _pages.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -113,7 +116,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             child: PageView.builder(
               controller: _pages,
               onPageChanged: (p) => setState(
-                  () => _currentMonth = addMonths(_baseMonth, p - _middlePage)),
+                () => _currentMonth = addMonths(_baseMonth, p - _middlePage),
+              ),
               itemBuilder: (_, p) =>
                   _MonthPage(month: addMonths(_baseMonth, p - _middlePage)),
             ),
@@ -142,8 +146,8 @@ class _WeekdayHeader extends StatelessWidget {
               width: 44,
               child: Center(
                 child: Text(
-                  DateFormat.E(locale.languageCode).format(
-                      mondayRef.add(Duration(days: (ws - 1 + k) % 7))),
+                  DateFormat.E(locale.languageCode)
+                      .format(mondayRef.add(Duration(days: (ws - 1 + k) % 7))),
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
@@ -183,99 +187,145 @@ class _MonthPage extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
             color: total == 0
-                ? Colors.grey.withOpacity(.12)
+                ? Colors.grey.withValues(alpha: .12)
                 : scheme.primaryContainer,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              Icon(total == 0 ? Icons.event_available : Icons.event_note,
-                  size: 18, color: scheme.onSurfaceVariant),
+              Icon(
+                eventsAsync.isLoading && !eventsAsync.hasValue
+                    ? Icons.hourglass_empty
+                    : eventsAsync.hasError && !eventsAsync.hasValue
+                        ? Icons.error_outline
+                        : total == 0
+                            ? Icons.event_available
+                            : Icons.event_note,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  total == 0 ? s.noEventsThisMonth : s.scheduledCount(total),
+                  eventsAsync.isLoading && !eventsAsync.hasValue
+                      ? s.loading
+                      : eventsAsync.hasError && !eventsAsync.hasValue
+                          ? s.loadFailed
+                          : total == 0
+                              ? s.noEventsThisMonth
+                              : s.scheduledCount(total),
                   style: TextStyle(
-                      fontSize: 13, color: scheme.onSurfaceVariant),
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
           ),
         ),
         Expanded(
-          child: eventsAsync.isLoading
+          child: eventsAsync.isLoading && !eventsAsync.hasValue
               ? const Center(child: CircularProgressIndicator())
-              : GridView.builder(
-                  padding: const EdgeInsets.all(8),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 7, childAspectRatio: 0.9),
-                  itemCount: leading + daysInMonth,
-                  itemBuilder: (context, i) {
-                    if (i < leading) return const SizedBox.shrink();
+              : eventsAsync.hasError && !eventsAsync.hasValue
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(s.loadFailed),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                ref.invalidate(monthEventsProvider(month)),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: Text(s.retry),
+                          ),
+                        ],
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(8),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 7,
+                        childAspectRatio: 0.9,
+                      ),
+                      itemCount: leading + daysInMonth,
+                      itemBuilder: (context, i) {
+                        if (i < leading) return const SizedBox.shrink();
 
-                    final dayNum = i - leading + 1;
-                    final day = DateTime(month.year, month.month, dayNum);
-                    final count = counts[dayNum] ?? 0;
-                    final isToday = day.year == today.year &&
-                        day.month == today.month &&
-                        day.day == today.day;
+                        final dayNum = i - leading + 1;
+                        final day = DateTime(month.year, month.month, dayNum);
+                        final count = counts[dayNum] ?? 0;
+                        final isToday = day.year == today.year &&
+                            day.month == today.month &&
+                            day.day == today.day;
 
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        ref.read(selectedDateProvider.notifier).state = day;
-                        context.go(
-                            '/today?date=${DateFormat('yyyy-MM-dd').format(day)}');
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: count > 0
-                              ? scheme.primaryContainer.withOpacity(.45)
-                              : null,
-                          border: isToday
-                              ? Border.all(color: scheme.primary, width: 1.5)
-                              : null,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '$dayNum',
-                              style: TextStyle(
-                                fontWeight: isToday
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isToday ? scheme.primary : null,
+                        return Semantics(
+                          button: true,
+                          label:
+                              '${fmtFullDate(day, locale.languageCode)}. ${s.eventsOnDay(count)}',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              ref.read(selectedDateProvider.notifier).state =
+                                  day;
+                              context.go(
+                                '/today?date=${DateFormat('yyyy-MM-dd').format(day)}',
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: count > 0
+                                    ? scheme.primaryContainer.withValues(alpha: .45)
+                                    : null,
+                                border: isToday
+                                    ? Border.all(
+                                        color: scheme.primary, width: 1.5)
+                                    : null,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '$dayNum',
+                                    style: TextStyle(
+                                      fontWeight: isToday
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isToday ? scheme.primary : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  count > 0
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: scheme.primary,
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '$count',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox(height: 18),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            count > 0
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: scheme.primary,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '$count',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  )
-                                : const SizedBox(height: 18),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                          ),
+                        );
+                      },
+                    ),
         ),
       ],
     );

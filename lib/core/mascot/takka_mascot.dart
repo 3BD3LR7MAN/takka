@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import '../sound_service.dart';
 
 enum TakkaMood { idle, happy, thinking, sleepy, alert }
@@ -23,8 +24,9 @@ class _TakkaMascotState extends State<TakkaMascot>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 3200))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat();
   }
 
   @override
@@ -101,28 +103,40 @@ class TakkaPainter extends CustomPainter {
     canvas.translate(c.dx, c.dy + R * 1.18);
     canvas.scale(1, 0.22);
     canvas.drawCircle(
-        Offset.zero, R * 0.9, Paint()..color = Colors.black.withOpacity(0.35));
+      Offset.zero,
+      R * 0.9,
+      Paint()..color = Colors.black.withValues(alpha: 0.35),
+    );
     canvas.restore();
   }
 
   void _bezel(Canvas canvas, Offset c, double R, double S) {
-    canvas.drawCircle(c, R, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = S * 0.05
-      ..color = bezelDark);
-    canvas.drawCircle(c, R + S * 0.024, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = S * 0.008
-      ..color = bezelLight.withOpacity(0.7));
+    canvas.drawCircle(
+      c,
+      R,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = S * 0.05
+        ..color = bezelDark,
+    );
+    canvas.drawCircle(
+      c,
+      R + S * 0.024,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = S * 0.008
+        ..color = bezelLight.withValues(alpha: 0.7),
+    );
   }
 
   void _face(Canvas canvas, Offset c, double R) {
     canvas.drawCircle(
-        c,
-        R * 0.96,
-        Paint()
-          ..shader = const RadialGradient(colors: [faceTop, faceBottom])
-              .createShader(Rect.fromCircle(center: c, radius: R * 0.96)));
+      c,
+      R * 0.96,
+      Paint()
+        ..shader = const RadialGradient(colors: [faceTop, faceBottom])
+            .createShader(Rect.fromCircle(center: c, radius: R * 0.96)),
+    );
   }
 
   void _rim(Canvas canvas, Offset c, double R, double S) {
@@ -131,7 +145,7 @@ class TakkaPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = S * 0.012
       ..strokeCap = StrokeCap.round
-      ..color = steelDim.withOpacity(0.5);
+      ..color = steelDim.withValues(alpha: 0.5);
     for (var i = 0; i < 12; i++) {
       final a = i * 30.0;
       canvas.drawLine(_pt(c, R * 0.80, a), _pt(c, R * 0.88, a), tick);
@@ -141,7 +155,7 @@ class TakkaPainter extends CustomPainter {
     Color seg(Color base) => switch (mood) {
           TakkaMood.happy => green,
           TakkaMood.alert => orange,
-          TakkaMood.sleepy => base.withOpacity(0.35),
+          TakkaMood.sleepy => base.withValues(alpha: 0.35),
           _ => base,
         };
     final arcPaint = Paint()
@@ -150,8 +164,13 @@ class TakkaPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     void arc(double from, double to, Color col) {
       arcPaint.color = col;
-      canvas.drawArc(Rect.fromCircle(center: c, radius: R * 0.86),
-          from * math.pi / 180, (to - from) * math.pi / 180, false, arcPaint);
+      canvas.drawArc(
+        Rect.fromCircle(center: c, radius: R * 0.86),
+        from * math.pi / 180,
+        (to - from) * math.pi / 180,
+        false,
+        arcPaint,
+      );
     }
 
     arc(-100, -70, seg(green));
@@ -178,7 +197,11 @@ class TakkaPainter extends CustomPainter {
       canvas.drawLine(sh(10), hd(-5), paint);
     } else if (mood == TakkaMood.thinking) {
       canvas.drawLine(sh(160), hd(135), paint);
-      canvas.drawLine(sh(340), c + Offset(R * 0.18, R * 0.34), paint); // hand on chin
+      canvas.drawLine(
+        sh(340),
+        c + Offset(R * 0.18, R * 0.34),
+        paint,
+      ); // hand on chin
     } else {
       canvas.drawLine(sh(160), hd(135), paint); // relaxed down
       canvas.drawLine(sh(20), hd(45), paint);
@@ -198,13 +221,14 @@ class TakkaPainter extends CustomPainter {
         ..color = steel;
       for (final s in [-1.0, 1.0]) {
         final rect = Rect.fromCenter(
-            center: Offset(c.dx + s * dx * R, eyeY),
-            width: R * 0.26,
-            height: R * 0.26);
+          center: Offset(c.dx + s * dx * R, eyeY),
+          width: R * 0.26,
+          height: R * 0.26,
+        );
         if (mood == TakkaMood.happy) {
-          canvas.drawArc(rect, math.pi, math.pi, false, p); // ∩ 
+          canvas.drawArc(rect, math.pi, math.pi, false, p); // ∩
         } else {
-          canvas.drawArc(rect, 0, math.pi, false, p); // closed lids ∪ 
+          canvas.drawArc(rect, 0, math.pi, false, p); // closed lids ∪
         }
       }
       return;
@@ -219,10 +243,11 @@ class TakkaPainter extends CustomPainter {
       }
       final w = R * (mood == TakkaMood.alert ? 0.17 : 0.13);
       final h = w * 1.5 * blink * (mood == TakkaMood.alert ? 1.25 : 1.0);
-      final rect =
-          Rect.fromCenter(center: Offset(cx, cy), width: w, height: h);
+      final rect = Rect.fromCenter(center: Offset(cx, cy), width: w, height: h);
       canvas.drawOval(
-          rect.inflate(S * 0.010), Paint()..color = steel.withOpacity(0.25));
+        rect.inflate(S * 0.010),
+        Paint()..color = steel.withValues(alpha: 0.25),
+      );
       canvas.drawOval(rect, Paint()..color = steel);
     }
   }
@@ -237,59 +262,82 @@ class TakkaPainter extends CustomPainter {
 
     if (mood == TakkaMood.happy) {
       canvas.drawArc(
-          Rect.fromCenter(
-              center: Offset(c.dx, my), width: R * 0.5, height: R * 0.45),
-          0,
-          math.pi,
-          false,
-          p..strokeWidth = S * 0.022);
+        Rect.fromCenter(
+          center: Offset(c.dx, my),
+          width: R * 0.5,
+          height: R * 0.45,
+        ),
+        0,
+        math.pi,
+        false,
+        p..strokeWidth = S * 0.022,
+      );
     } else if (mood == TakkaMood.sleepy) {
       canvas.drawCircle(Offset(c.dx, my + R * 0.05), R * 0.06, p);
     } else if (mood == TakkaMood.alert) {
       canvas.drawCircle(Offset(c.dx, my + R * 0.05), R * 0.09, p);
     } else if (mood == TakkaMood.thinking) {
       canvas.drawPath(
-          Path()
-            ..moveTo(c.dx - R * 0.15, my + R * 0.06)
-            ..quadraticBezierTo(
-                c.dx - R * 0.05, my - R * 0.02, c.dx + R * 0.02, my + R * 0.06)
-            ..quadraticBezierTo(c.dx + R * 0.09, my + R * 0.12,
-                c.dx + R * 0.16, my + R * 0.04),
-          p);
+        Path()
+          ..moveTo(c.dx - R * 0.15, my + R * 0.06)
+          ..quadraticBezierTo(
+            c.dx - R * 0.05,
+            my - R * 0.02,
+            c.dx + R * 0.02,
+            my + R * 0.06,
+          )
+          ..quadraticBezierTo(
+            c.dx + R * 0.09,
+            my + R * 0.12,
+            c.dx + R * 0.16,
+            my + R * 0.04,
+          ),
+        p,
+      );
     } else {
       canvas.drawArc(
-          Rect.fromCenter(
-              center: Offset(c.dx, my - R * 0.05),
-              width: R * 0.34,
-              height: R * 0.30),
-          0.15 * math.pi,
-          0.7 * math.pi,
-          false,
-          p);
+        Rect.fromCenter(
+          center: Offset(c.dx, my - R * 0.05),
+          width: R * 0.34,
+          height: R * 0.30,
+        ),
+        0.15 * math.pi,
+        0.7 * math.pi,
+        false,
+        p,
+      );
     }
   }
 
   void _bellyDial(Canvas canvas, Offset c, double R, double S) {
     final bc = c + Offset(0, R * 0.52);
-    canvas.drawCircle(bc, R * 0.20, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = S * 0.012
-      ..color = steelDim);
+    canvas.drawCircle(
+      bc,
+      R * 0.20,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = S * 0.012
+        ..color = steelDim,
+    );
     final hp = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..color = steel
       ..strokeWidth = S * 0.016;
     canvas.drawLine(bc, _pt(bc, R * 0.14, -120), hp); // 10 o'clock
-    canvas.drawLine(bc, _pt(bc, R * 0.16, -60), hp); // 2 o'clock — the 10:10 signature
+    canvas.drawLine(
+      bc,
+      _pt(bc, R * 0.16, -60),
+      hp,
+    ); // 2 o'clock — the 10:10 signature
     canvas.drawCircle(bc, S * 0.012, Paint()..color = steel);
   }
 
   void _checks(Canvas canvas, Offset c, double R, double S) {
     final spots = [
-      (Offset(0.75, -1.00), green),
-      (Offset(1.05, -0.60), green),
-      (Offset(0.80, -1.20), amber),
+      (const Offset(0.75, -1.00), green),
+      (const Offset(1.05, -0.60), green),
+      (const Offset(0.80, -1.20), amber),
     ];
     for (var i = 0; i < spots.length; i++) {
       final o = c +
@@ -297,16 +345,17 @@ class TakkaPainter extends CustomPainter {
           Offset(0, math.sin(t * 2 * math.pi + i) * S * 0.01);
       final s = S * 0.035;
       canvas.drawPath(
-          Path()
-            ..moveTo(o.dx - s, o.dy)
-            ..lineTo(o.dx - s * 0.3, o.dy + s * 0.6)
-            ..lineTo(o.dx + s, o.dy - s * 0.6),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = s * 0.5
-            ..strokeCap = StrokeCap.round
-            ..strokeJoin = StrokeJoin.round
-            ..color = spots[i].$2);
+        Path()
+          ..moveTo(o.dx - s, o.dy)
+          ..lineTo(o.dx - s * 0.3, o.dy + s * 0.6)
+          ..lineTo(o.dx + s, o.dy - s * 0.6),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = s * 0.5
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = spots[i].$2,
+      );
     }
   }
 
@@ -315,7 +364,7 @@ class TakkaPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..color = steel.withOpacity(0.8)
+      ..color = steel.withValues(alpha: 0.8)
       ..strokeWidth = S * 0.014;
     for (var i = 0; i < 2; i++) {
       final s = S * (0.03 + i * 0.012);
@@ -323,12 +372,13 @@ class TakkaPainter extends CustomPainter {
           Offset(R * (0.75 + i * 0.28), -R * (0.95 + i * 0.28)) +
           Offset(0, math.sin(t * 2 * math.pi + i) * S * 0.008);
       canvas.drawPath(
-          Path()
-            ..moveTo(o.dx, o.dy)
-            ..lineTo(o.dx + s, o.dy)
-            ..lineTo(o.dx, o.dy + s)
-            ..lineTo(o.dx + s, o.dy + s),
-          p);
+        Path()
+          ..moveTo(o.dx, o.dy)
+          ..lineTo(o.dx + s, o.dy)
+          ..lineTo(o.dx, o.dy + s)
+          ..lineTo(o.dx + s, o.dy + s),
+        p,
+      );
     }
   }
 }

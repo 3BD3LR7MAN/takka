@@ -62,16 +62,29 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if ((page - current).abs() > 90) {
       _pages.jumpToPage(page);
     } else {
-      _pages.animateToPage(page,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic);
+      _pages.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: ref.read(selectedDateProvider),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && mounted) _goToDate(dayOnly(picked));
+  }
+
   void _jumpBy(int deltaDays) => _pages.animateToPage(
-      _pages.page!.round() + deltaDays,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut);
+        (_pages.page ?? _middlePage).round() + deltaDays,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -86,22 +99,39 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(fmtFullDate(date, lang),
-                style: const TextStyle(fontSize: 16)),
-            if (dayOnly(DateTime.now()) == date)
-              Text(s.today,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
+        title: Tooltip(
+          message: s.pickDate,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: _pickDate,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fmtFullDate(date, lang),
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (dayOnly(DateTime.now()) == date)
+                    Text(
+                      s.today,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
         actions: [
           IconButton(
             tooltip: s.previousDay,
-            icon: Icon(lang == 'ar'
-                ? Icons.chevron_right_rounded
-                : Icons.chevron_left_rounded),
+            icon: Icon(
+              lang == 'ar'
+                  ? Icons.chevron_right_rounded
+                  : Icons.chevron_left_rounded,
+            ),
             onPressed: () {
               SoundService.instance.playClick();
               _jumpBy(-1);
@@ -109,25 +139,68 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
           IconButton(
             tooltip: s.nextDay,
-            icon: Icon(lang == 'ar'
-                ? Icons.chevron_left_rounded
-                : Icons.chevron_right_rounded),
+            icon: Icon(
+              lang == 'ar'
+                  ? Icons.chevron_left_rounded
+                  : Icons.chevron_right_rounded,
+            ),
             onPressed: () {
               SoundService.instance.playClick();
               _jumpBy(1);
             },
           ),
-          IconButton(
-            tooltip: s.calendar,
-            icon: const Icon(Icons.calendar_month_rounded),
-            onPressed: () => context.go('/calendar'),
+          PopupMenuButton<String>(
+            tooltip: s.moreActions,
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (action) {
+              SoundService.instance.playClick();
+              switch (action) {
+                case 'week':
+                  context.push(
+                    '/week?date=${DateFormat('yyyy-MM-dd').format(date)}',
+                  );
+                  break;
+                case 'calendar':
+                  context.go('/calendar');
+                  break;
+                case 'ai':
+                  context.push('/ai');
+                  break;
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'week',
+                child: Row(
+                  children: [
+                    const Icon(Icons.view_week_outlined),
+                    const SizedBox(width: 12),
+                    Text(s.weekView),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'calendar',
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_rounded),
+                    const SizedBox(width: 12),
+                    Text(s.calendar),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'ai',
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded),
+                    const SizedBox(width: 12),
+                    Text(s.askAi),
+                  ],
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: s.askAi,
-            icon: const Icon(Icons.auto_awesome_rounded),
-            onPressed: () => context.push('/ai'),
-          ),
-          const SizedBox(width: 4),
         ],
       ),
       body: PageView.builder(
@@ -143,7 +216,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         onPressed: () {
           SoundService.instance.playClick();
           context.push(
-              '/event/add?date=${DateFormat('yyyy-MM-dd').format(date)}');
+            '/event/add?date=${DateFormat('yyyy-MM-dd').format(date)}',
+          );
         },
         child: const Icon(Icons.add_rounded),
       ),
@@ -198,7 +272,20 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
 
     return asyncEvents.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(s.loadFailed),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => ref.invalidate(dayEventsProvider(widget.day)),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.retry),
+            ),
+          ],
+        ),
+      ),
       data: (events) {
         if (events.isEmpty) return _emptyState(context, s);
 
@@ -235,17 +322,21 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
                                     child: Text(
                                       '${h.toString().padLeft(2, '0')}:00',
                                       style: const TextStyle(
-                                          fontSize: 11, color: Colors.grey),
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
                                       textAlign: TextAlign.right,
                                     ),
                                   ),
                                 ),
                                 Expanded(
-                                    child: Divider(
-                                        height: 1,
-                                        color: Theme.of(context)
-                                            .dividerColor
-                                            .withOpacity(.35))),
+                                  child: Divider(
+                                    height: 1,
+                                    color: Theme.of(context)
+                                        .dividerColor
+                                        .withValues(alpha: .35),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -261,12 +352,13 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
                                   width: 8,
                                   height: 8,
                                   decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle),
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                                 const Expanded(
-                                    child:
-                                        Divider(height: 2, color: Colors.red)),
+                                  child: Divider(height: 2, color: Colors.red),
+                                ),
                               ],
                             ),
                           ),
@@ -284,7 +376,10 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
   }
 
   List<Widget> _buildTimed(
-      List<Event> timed, DateTime dayStart, DateTime dayEnd) {
+    List<Event> timed,
+    DateTime dayStart,
+    DateTime dayEnd,
+  ) {
     final lanes = assignLanes(timed);
     final width = MediaQuery.sizeOf(context).width;
     final widgets = <Widget>[];
@@ -293,8 +388,10 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
       final top = (seg.start.hour * 60 + seg.start.minute) / 60 * hourHeight;
       final endMinutes =
           seg.end == dayEnd ? 24 * 60 : seg.end.hour * 60 + seg.end.minute;
-      final height =
-          ((endMinutes / 60 * hourHeight) - top).clamp(28.0, 24 * hourHeight);
+      final height = ((endMinutes / 60 * hourHeight) - top).clamp(
+        28.0,
+        24 * hourHeight,
+      );
       final (lane, total) = lanes[e.id] ?? (0, 1);
       widgets.add(
         Positioned(
@@ -352,7 +449,9 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
             Text(s.takkaSleepy, style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () => context.push('/event/add'),
+              onPressed: () => context.push(
+                '/event/add?date=${DateFormat('yyyy-MM-dd').format(widget.day)}',
+              ),
               icon: const Icon(Icons.add),
               label: Text(s.addEvent),
             ),

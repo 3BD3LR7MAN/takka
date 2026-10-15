@@ -34,23 +34,34 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
   Future<void> _toggleVoice() async {
     if (_listening) {
       await _stt.stop();
-      setState(() => _listening = false);
+      if (mounted) setState(() => _listening = false);
       return;
     }
-    final ok = await _stt.initialize();
+    final ok = await _stt.initialize(
+      onStatus: (status) {
+        if (mounted && (status == 'done' || status == 'notListening')) {
+          setState(() => _listening = false);
+        }
+      },
+    );
+    if (!mounted) return;
     if (!ok) {
       final s = AppStrings.of(context);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(s.micUnavailable)));
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(s.micUnavailable)));
       return;
     }
     setState(() => _listening = true);
     await _stt.listen(
       // النص الناتج قابل للتعديل قبل الإرسال (قاعدة 26)
-      onResult: (r) => setState(() => _textCtrl.text = r.recognizedWords),
-      listenFor: const Duration(seconds: 30),
+      onResult: (result) {
+        if (mounted) {
+          setState(() => _textCtrl.text = result.recognizedWords);
+        }
+      },
+      listenOptions: SpeechListenOptions(
+        listenFor: const Duration(seconds: 30),
+      ),
     );
   }
 
@@ -67,22 +78,52 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
 
     setState(() => _sending = true);
     try {
-      // سياق الحد الأدنى فقط — ليس الجدولة كاملة (مواصفة H)
-      final existing = await ref.read(eventRepositoryProvider).overlapping(
-          DateTime.now(), DateTime.now().add(const Duration(days: 2)));
-      final ctx = existing.isEmpty
-          ? 'No existing events in this range.'
-          : 'Existing events (avoid overlaps): ${existing.map((e) => e.title).join(', ')}';
+      final repo = ref.read(eventRepositoryProvider);
+      final now = DateTime.now();
+      final existing = await repo.mastersOverlapping(
+        now.subtract(const Duration(days: 30)),
+        now.add(const Duration(days: 90)),
+      );
+      final db = ref.read(databaseProvider);
+      final existingTasks = await db.select(db.tasks).get();
+      final ctx = StringBuffer(
+        'Existing records. Use exact titles for any edit or delete; never guess an ID.\nEVENTS:\n',
+      );
+      if (existing.isEmpty) {
+        ctx.writeln('- none in the last 30 days or next 90 days');
+      } else {
+        for (final event in existing) {
+          final start = DateTime.fromMillisecondsSinceEpoch(event.startDt);
+          ctx.writeln('- ${event.title} | ${start.toIso8601String()}');
+        }
+      }
+      ctx.writeln('TASKS:');
+      if (existingTasks.isEmpty) {
+        ctx.writeln('- none');
+      } else {
+        for (final task in existingTasks) {
+          final due = task.dueDate == null
+              ? ''
+              : ' | due ${DateTime.fromMillisecondsSinceEpoch(task.dueDate!).toIso8601String()}';
+          ctx.writeln('- ${task.title} | ${task.done ? 'done' : 'open'}$due');
+        }
+      }
 
-      final result = await svc.extractEvents(AiRequest(
-        text: text,
-        now: DateTime.now(),
-        timezone: DateTime.now().timeZoneName,
-        contextSummary: ctx,
-      ));
+      final result = await svc.extractEvents(
+        AiRequest(
+          text: text,
+          now: now,
+          timezone: DateTime.now().timeZoneName,
+          contextSummary: ctx.toString(),
+        ),
+      );
+      resolveEdits(result, existing, existingTasks);
 
       ref.read(proposedEventsProvider.notifier).set(result.events);
       ref.read(proposedTasksProvider.notifier).set(result.tasks);
+      ref.read(proposedUpdatesProvider.notifier).set(result.updates);
+      ref.read(proposedDeletesProvider.notifier).set(result.deletes);
+      ref.read(proposedAmbiguitiesProvider.notifier).state = result.ambiguities;
       if (mounted) {
         _textCtrl.clear(); // يُحذف النص فقط عند النجاح (مواصفة R)
         context.push('/ai/confirm');
@@ -101,7 +142,8 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
   void _error(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), duration: const Duration(seconds: 4)));
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
+    );
   }
 
   @override
@@ -113,8 +155,8 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
 
     return Scaffold(
       appBar: AppBar(
-          title:
-              Text('${s.askAi}${svc == null ? '' : ' • ${svc.providerName}'}')),
+        title: Text('${s.askAi}${svc == null ? '' : ' • ${svc.providerName}'}'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -132,7 +174,11 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_sending) const Padding(padding: EdgeInsets.only(bottom: 4), child: TakkaMascot(mood: TakkaMood.thinking, size: 90)),
+            if (_sending)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: TakkaMascot(mood: TakkaMood.thinking, size: 90),
+              ),
             Row(
               children: [
                 CircleAvatar(
@@ -141,8 +187,10 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
                       ? Colors.red
                       : Theme.of(context).colorScheme.secondaryContainer,
                   child: IconButton(
-                    icon: Icon(_listening ? Icons.stop : Icons.mic,
-                        color: _listening ? Colors.white : null),
+                    icon: Icon(
+                      _listening ? Icons.stop : Icons.mic,
+                      color: _listening ? Colors.white : null,
+                    ),
                     onPressed: _toggleVoice,
                   ),
                 ),
@@ -155,16 +203,18 @@ class _AiInputScreenState extends ConsumerState<AiInputScreen> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.auto_awesome),
                     label: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Text(svc == null
-                          ? s.configureAiFirst
-                          : !online
-                              ? s.offlineAi
-                              : s.sendToAi),
+                      child: Text(
+                        svc == null
+                            ? s.configureAiFirst
+                            : !online
+                                ? s.offlineAi
+                                : s.sendToAi,
+                      ),
                     ),
                   ),
                 ),

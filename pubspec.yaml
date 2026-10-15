@@ -1,7 +1,7 @@
 name: takka
 description: AI Daily Schedule Assistant — local-first timeline scheduler with Arabic support.
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.14+15
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -30,9 +30,10 @@ dependencies:
 
   # AI layer (spec H/K/M)
   http: ^1.2.2
-  speech_to_text: ^6.6.2
+  speech_to_text: ^7.5.0
   connectivity_plus: ^6.0.5
   flutter_secure_storage: ^10.3.1
+  package_info_plus: ^8.3.1
 
   # Home screen widget
   home_widget: ^0.7.0

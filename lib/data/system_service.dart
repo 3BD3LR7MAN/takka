@@ -6,21 +6,36 @@ class SystemService {
 
   static Future<bool> isIgnoringBatteryOptimizations() async {
     try {
-      return await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations') ?? false;
+      return await _channel.invokeMethod<bool>(
+            'isIgnoringBatteryOptimizations',
+          ) ??
+          false;
     } catch (_) {
       return false;
     }
   }
 
   static Future<void> requestBatteryExemption() async {
-    try { await _channel.invokeMethod('requestBatteryExemption'); } catch (_) {}
+    try {
+      await _channel.invokeMethod('requestBatteryExemption');
+    } catch (_) {}
   }
 
   static Future<void> openExactAlarmSettings() async {
-    try { await _channel.invokeMethod('openExactAlarmSettings'); } catch (_) {}
+    try {
+      await _channel.invokeMethod('openExactAlarmSettings');
+    } catch (_) {}
+  }
+
+  static Future<void> openNotificationSettings() async {
+    try {
+      await _channel.invokeMethod('openNotificationSettings');
+    } catch (_) {}
   }
 
   static Future<void> openAutostartSettings() async {
-    try { await _channel.invokeMethod('openAutostartSettings'); } catch (_) {}
+    try {
+      await _channel.invokeMethod('openAutostartSettings');
+    } catch (_) {}
   }
 }
