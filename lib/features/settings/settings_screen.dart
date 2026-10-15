@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n.dart';
 import '../../core/links.dart';
 import '../../core/mascot/takka_mascot.dart';
+import '../../core/sound_service.dart';
 import '../../data/notification_service.dart';
 import '../../data/repositories.dart';
 import '../../data/system_service.dart';
@@ -169,6 +169,152 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onChanged: (_) => _setLocale('ar'),
           ),
           const Divider(),
+          // ── Sounds & Alarm Mode ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(s.soundAndAlerts,
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.volume_up_rounded),
+            title: Text(s.soundEffects),
+            subtitle: Text(s.soundEffectsSubtitle),
+            value: SoundService.instance.soundEffectsEnabled,
+            onChanged: (v) async {
+              await SoundService.instance.setSoundEffectsEnabled(v);
+              setState(() {});
+            },
+          ),
+          if (SoundService.instance.soundEffectsEnabled)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: DropdownButtonFormField<String>(
+                value: SoundService.instance.soundTheme,
+                decoration: InputDecoration(
+                  labelText: s.soundThemeTitle,
+                  prefixIcon: const Icon(Icons.music_note_rounded),
+                  isDense: true,
+                ),
+                items: SoundService.availableThemes.map((item) {
+                  final name = currentLang == 'ar' ? item['nameAr']! : item['nameEn']!;
+                  return DropdownMenuItem<String>(
+                    value: item['id'],
+                    child: Text(name),
+                  );
+                }).toList(),
+                onChanged: (theme) async {
+                  if (theme != null) {
+                    await SoundService.instance.setSoundTheme(theme);
+                    setState(() {});
+                  }
+                },
+              ),
+            ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: ValueListenableBuilder<String?>(
+              valueListenable: SoundService.instance.playingPreviewRingtone,
+              builder: (context, playingId, _) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: SoundService.instance.ringtone,
+                      decoration: InputDecoration(
+                        labelText: s.reminderRingtone,
+                        prefixIcon: const Icon(Icons.ring_volume_rounded),
+                        helperText: s.ringtoneSubtitle,
+                        isDense: true,
+                        suffixIcon: IconButton(
+                          tooltip: playingId != null ? s.stop : s.preview,
+                          icon: Icon(
+                            playingId != null
+                                ? Icons.stop_circle_rounded
+                                : Icons.play_circle_fill_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          onPressed: () {
+                            if (playingId != null) {
+                              SoundService.instance.stopRingtonePreview();
+                            } else {
+                              SoundService.instance.previewRingtone(SoundService.instance.ringtone);
+                            }
+                          },
+                        ),
+                      ),
+                      items: SoundService.availableRingtones.map((item) {
+                        final name = currentLang == 'ar' ? item['nameAr']! : item['nameEn']!;
+                        return DropdownMenuItem<String>(
+                          value: item['id'],
+                          child: Text(name),
+                        );
+                      }).toList(),
+                      onChanged: (ring) async {
+                        if (ring != null) {
+                          await SoundService.instance.setRingtone(ring);
+                          setState(() {});
+                        }
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            secondary: const Icon(Icons.alarm_rounded),
+            title: Text(s.alarmMode),
+            subtitle: Text(s.alarmModeSubtitle),
+            value: SoundService.instance.alarmModeEnabled,
+            onChanged: (v) async {
+              await SoundService.instance.setAlarmModeEnabled(v);
+              setState(() {});
+            },
+          ),
+          if (SoundService.instance.alarmModeEnabled) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: DropdownButtonFormField<int>(
+                value: SoundService.instance.snoozeDurationMinutes,
+                decoration: InputDecoration(
+                  labelText: s.snoozeDuration,
+                  prefixIcon: const Icon(Icons.snooze_rounded),
+                  isDense: true,
+                ),
+                items: [5, 10, 15].map((mins) {
+                  return DropdownMenuItem<int>(
+                    value: mins,
+                    child: Text('$mins ${currentLang == 'ar' ? 'دقائق' : 'minutes'}'),
+                  );
+                }).toList(),
+                onChanged: (mins) async {
+                  if (mins != null) {
+                    await SoundService.instance.setSnoozeDuration(mins);
+                    setState(() {});
+                  }
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.notification_important_rounded),
+                label: Text(s.testAlarmNow),
+                onPressed: () {
+                  SoundService.instance.triggerAlarm(
+                    eventId: 'test_alarm_preview',
+                    title: currentLang == 'ar' ? 'اختبار وضع المنبه' : 'Alarm Mode Test',
+                    location: currentLang == 'ar' ? 'مدير الوقت' : 'Takka Schedule',
+                    time: DateTime.now(),
+                    importance: 'critical',
+                  );
+                },
+              ),
+            ),
+          ],
+          const Divider(),
           Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Text(s.aiProvider, style: const TextStyle(fontSize: 12, color: Colors.grey))),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Column(children: [
             DropdownButtonFormField<AiProviderKind>(
@@ -220,18 +366,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(children: [
               OutlinedButton.icon(
-                onPressed: () async { await NotificationService.instance.rescheduleAll(ref.read(eventRepositoryProvider)); await _loadDiag(); _toast(s.doneMsg); },
-                icon: const Icon(Icons.refresh), label: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.rescheduleAll))),
+                onPressed: () async {
+                  SoundService.instance.playClick();
+                  await NotificationService.instance.rescheduleAll(ref.read(eventRepositoryProvider));
+                  await _loadDiag();
+                  _toast(s.doneMsg);
+                },
+                icon: const Icon(Icons.sync_rounded),
+                label: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.rescheduleAll))),
               const SizedBox(height: 8),
               FilledButton.icon(
-                onPressed: () async { await NotificationService.instance.scheduleDebugTest(seconds: 15); _toast(s.testHint); },
-                icon: const Icon(Icons.notifications_active), label: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.testIn15))),
+                onPressed: () async {
+                  SoundService.instance.playClick();
+                  await NotificationService.instance.scheduleDebugTest(seconds: 15);
+                  _toast(s.testHint);
+                },
+                icon: const Icon(Icons.notifications_active_rounded),
+                label: Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.testIn15))),
             ]),
           ),
           const Divider(),
           ListTile(
             leading: const TakkaMascot(mood: TakkaMood.idle, size: 52),
-            title: Text('${s.appName} v1.0.0'),
+            title: Text('${s.appName} v1.0.1'),
             subtitle: Text('${s.appSubtitle}\n${s.takkaName}: ${s.takkaIdle}'),
           ),
           Padding(
@@ -239,17 +396,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(s.developer, style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ),
           ListTile(
-            leading: FaIcon(FontAwesomeIcons.github, size: 24, color: Theme.of(context).colorScheme.onSurface),
+            leading: Icon(Icons.code_rounded, size: 24, color: Theme.of(context).colorScheme.primary),
             title: Text(AppLinks.githubHandle),
             subtitle: Text(s.sourceCode, style: const TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.open_in_new, size: 18),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
             onTap: () => _open(AppLinks.github),
           ),
           ListTile(
-            leading: const FaIcon(FontAwesomeIcons.linkedin, size: 24, color: Color(0xFF0A66C2)),
+            leading: const Icon(Icons.link_rounded, size: 24, color: Color(0xFF0A66C2)),
             title: Text(AppLinks.linkedinHandle),
             subtitle: Text(s.connectMe, style: const TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.open_in_new, size: 18),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
             onTap: () => _open(AppLinks.linkedin),
           ),
           const SizedBox(height: 16),

@@ -44,6 +44,11 @@ class NotificationService {
       _lang = saved == 'ar' ? 'ar' : 'en';
     } catch (_) {}
 
+    if (kIsWeb) {
+      _ready = true;
+      return;
+    }
+
     tzdata.initializeTimeZones();
     try {
       tz.setLocalLocation(
@@ -56,7 +61,7 @@ class NotificationService {
 
     await plugin.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
       ),
       onDidReceiveNotificationResponse: (response) {
         final eventId = response.payload;
@@ -200,7 +205,7 @@ class NotificationService {
 
   /// اختبار فوري — بنفس قناة ونمط اهتزاز أهمية الحدث.
   Future<void> showTest(String title, {String importance = 'normal'}) async {
-    if (!_ready) return;
+    if (!_ready || kIsWeb) return;
     final ch = channels[importance] ?? channels['normal']!;
     await plugin.show(
       2147000,
@@ -212,6 +217,7 @@ class NotificationService {
           ch.$2,
           importance: importance == 'critical' ? Importance.max : Importance.high,
           priority: Priority.high,
+          icon: '@drawable/ic_notification',
           enableVibration: true,
           vibrationPattern: vibrationPatterns[importance],
         ),
@@ -265,6 +271,7 @@ class NotificationService {
         channels[importance]?.$2 ?? 'Reminders',
         importance: importance == 'critical' ? Importance.max : Importance.high,
         priority: Priority.high,
+        icon: '@drawable/ic_notification',
         playSound: true,
         enableVibration: true,
         vibrationPattern:

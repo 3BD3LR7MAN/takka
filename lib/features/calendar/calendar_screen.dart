@@ -99,7 +99,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         actions: [
           IconButton(
             tooltip: s.jumpToCurrentMonth,
-            icon: const Icon(Icons.today),
+            icon: const Icon(Icons.today_rounded),
             onPressed: _goToCurrentMonth,
           ),
         ],

@@ -1,0 +1,6 @@
+{
+  "name": "Takka",
+  "description": "AI-assisted daily schedule assistant with timeline, tasks, and reminders",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

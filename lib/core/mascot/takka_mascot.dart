@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../sound_service.dart';
 
 enum TakkaMood { idle, happy, thinking, sleepy, alert }
 
@@ -34,13 +35,16 @@ class _TakkaMascotState extends State<TakkaMascot>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, __) => CustomPaint(
-          painter: TakkaPainter(t: _ctrl.value, mood: widget.mood),
+    return GestureDetector(
+      onTap: () => SoundService.instance.playMascotTap(),
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, __) => CustomPaint(
+            painter: TakkaPainter(t: _ctrl.value, mood: widget.mood),
+          ),
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/l10n.dart';
 import 'core/navigator.dart';
 import 'core/router.dart';
+import 'core/sound_service.dart';
 import 'core/theme.dart';
 import 'data/db.dart';
 import 'data/notification_service.dart';
@@ -20,6 +21,7 @@ import 'features/settings/settings_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting(); // بيانات التواريخ العربية (ص/م)
+  await SoundService.instance.init();
 
   final db = AppDatabase();
   final repo = EventRepository(db);

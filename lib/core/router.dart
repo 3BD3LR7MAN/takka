@@ -12,6 +12,7 @@ import '../features/today/providers.dart';
 import '../features/today/today_screen.dart';
 import 'l10n.dart';
 import 'navigator.dart';
+import 'sound_service.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -66,7 +67,77 @@ class HomeShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = AppStrings.of(context);
     return Scaffold(
-      body: shell,
+      body: Column(
+        children: [
+          ValueListenableBuilder<AlarmState?>(
+            valueListenable: SoundService.instance.activeAlarm,
+            builder: (context, alarm, _) {
+              if (alarm == null) return const SizedBox.shrink();
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: Colors.red.shade700,
+                child: SafeArea(
+                  bottom: false,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.alarm_on_rounded, color: Colors.white, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.alarmActiveBanner,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            Text(
+                              alarm.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                        ),
+                        onPressed: () => SoundService.instance.snoozeAlarm(
+                          minutes: SoundService.instance.snoozeDurationMinutes,
+                        ),
+                        icon: const Icon(Icons.snooze, size: 16),
+                        label: Text(s.snoozeAction),
+                      ),
+                      const SizedBox(width: 6),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.red.shade900,
+                        ),
+                        onPressed: () => SoundService.instance.dismissAlarm(),
+                        child: Text(s.dismissAction),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          Expanded(child: shell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (i) {
@@ -79,11 +150,20 @@ class HomeShell extends ConsumerWidget {
         },
         destinations: [
           NavigationDestination(
-              icon: const Icon(Icons.timeline), label: s.today),
+            icon: const Icon(Icons.today_outlined),
+            selectedIcon: const Icon(Icons.today_rounded),
+            label: s.today,
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.calendar_month), label: s.calendar),
+            icon: const Icon(Icons.calendar_month_outlined),
+            selectedIcon: const Icon(Icons.calendar_month_rounded),
+            label: s.calendar,
+          ),
           NavigationDestination(
-              icon: const Icon(Icons.settings), label: s.settings),
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings_rounded),
+            label: s.settings,
+          ),
         ],
       ),
     );

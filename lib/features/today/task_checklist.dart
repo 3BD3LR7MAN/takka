@@ -48,7 +48,7 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
           children: [
             Row(
               children: [
-                Icon(Icons.checklist, size: 18, color: scheme.primary),
+                Icon(Icons.checklist_rounded, size: 18, color: scheme.primary),
                 const SizedBox(width: 8),
                 Text(s.tasks,
                     style: const TextStyle(
@@ -92,7 +92,7 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
                               style: const TextStyle(fontSize: 11))
                           : null,
                       secondary: IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 20),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
                         onPressed: () => repo.removeTask(t.id),
                       ),
                     ),
@@ -115,7 +115,7 @@ class _TaskChecklistState extends ConsumerState<TaskChecklist> {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   onPressed: () => _add(),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_rounded),
                 ),
               ],
             ),
