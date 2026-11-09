@@ -14,8 +14,7 @@ String fmtShortDate(DateTime d, String lang) =>
     DateFormat('EEE, d MMM', lang).format(d);
 String fmtDateTime(DateTime d, String lang) =>
     DateFormat('EEE, d MMM • h:mm a', lang).format(d);
-String fmtTime(DateTime d, String lang) =>
-    DateFormat('h:mm a', lang).format(d);
+String fmtTime(DateTime d, String lang) => DateFormat('h:mm a', lang).format(d);
 String fmtMonthYear(DateTime d, String lang) =>
     DateFormat('MMMM yyyy', lang).format(d);
 String fmtTimeOfDay(TimeOfDay t, String lang) =>
@@ -34,14 +33,27 @@ class AppStrings {
   String get today => _t('Today', 'اليوم');
   String get calendar => _t('Calendar', 'التقويم');
   String get settings => _t('Settings', 'الإعدادات');
+  String get weekView => _t('Week', 'أسبوع');
+  String get moreActions => _t('More actions', 'المزيد');
+  String get pickDate => _t('Choose a date', 'اختيار تاريخ');
 
   // Today
   String get previousDay => _t('Previous day', 'اليوم السابق');
   String get nextDay => _t('Next day', 'اليوم التالي');
+  String get previousWeek => _t('Previous week', 'الأسبوع السابق');
+  String get nextWeek => _t('Next week', 'الأسبوع التالي');
   String get askAi => _t('Ask AI', 'اسأل الذكاء الاصطناعي');
   String get addEvent => _t('Add Event', 'إضافة حدث');
-  String get nothingPlanned =>
-      _t('Nothing planned for this day yet.', 'لا يوجد شيء مخطط لهذا اليوم بعد.');
+  String get nothingPlanned => _t(
+        'Nothing planned for this day yet.',
+        'لا يوجد شيء مخطط لهذا اليوم بعد.',
+      );
+  String get loadFailed => _t(
+        'Could not load this content.',
+        'تعذر تحميل هذا المحتوى.',
+      );
+  String get retry => _t('Retry', 'إعادة المحاولة');
+  String get loading => _t('Loading…', 'جارٍ التحميل…');
 
   // Tasks
   String get tasks => _t('Tasks', 'المهام');
@@ -49,13 +61,22 @@ class AppStrings {
   String get noDate => _t('No date', 'بدون تاريخ');
 
   // Calendar
-  String get jumpToCurrentMonth => _t('Jump to current month', 'الانتقال إلى الشهر الحالي');
+  String get jumpToCurrentMonth =>
+      _t('Jump to current month', 'الانتقال إلى الشهر الحالي');
   String get noEventsThisMonth => _t(
-      'No events this month — add one from the Today screen',
-      'لا أحداث هذا الشهر — أضف حدثًا من شاشة اليوم');
+        'No events this month — add one from the Today screen',
+        'لا أحداث هذا الشهر — أضف حدثًا من شاشة اليوم',
+      );
   String scheduledCount(int n) => ar
       ? '$n ${n == 1 ? 'حدث مجدول' : n == 2 ? 'حدثان مجدولان' : 'أحداث مجدولة'} هذا الشهر'
       : '$n scheduled ${n == 1 ? 'event' : 'events'} this month';
+  String eventsOnDay(int n) => ar
+      ? (n == 0
+          ? 'لا أحداث'
+          : n == 1
+              ? 'حدث واحد'
+              : '$n أحداث')
+      : '$n ${n == 1 ? 'event' : 'events'}';
 
   // Add/Edit
   String get editEvent => _t('Edit Event', 'تعديل الحدث');
@@ -64,13 +85,39 @@ class AppStrings {
   String get allDay => _t('All-day', 'طوال اليوم');
   String get start => _t('Start', 'البداية');
   String get end => _t('End', 'النهاية');
-  String get endAfterStart => _t('End must be after start', 'يجب أن تكون النهاية بعد البداية');
-  String get typeTimeHint => _t('Type time (e.g. 9:30 ص / 9:30 pm)', 'اكتب الوقت (مثال: 9:30 ص / 9:30 م)');
+  String get endAfterStart =>
+      _t('End must be after start', 'يجب أن تكون النهاية بعد البداية');
+  String get typeTimeHint => _t(
+        'Type time (e.g. 9:30 ص / 9:30 pm)',
+        'اكتب الوقت (مثال: 9:30 ص / 9:30 م)',
+      );
+  String get startTimeInput =>
+      _t('Start time (optional)', 'وقت البدء (اختياري)');
+  String get endTimeInput =>
+      _t('End time (optional)', 'وقت الانتهاء (اختياري)');
+  String get invalidTime => _t(
+        'Enter a valid time, such as 9:30 AM or 21:30.',
+        'أدخل وقتًا صحيحًا، مثل 9:30 ص أو 21:30.',
+      );
+  String get saveFailed => _t(
+        'Could not save. Your changes are still here—please try again.',
+        'تعذر الحفظ. تغييراتك ما زالت موجودة—حاول مرة أخرى.',
+      );
   String get category => _t('Category', 'التصنيف');
   String get reminders => _t('Reminders', 'التذكيرات');
+  String get eventAlarm =>
+      _t('Alarm notification at start', 'إشعار منبه عند البدء');
+  String get eventAlarmSubtitle => _t(
+        'Show an alarm notification when this event starts.',
+        'إظهار إشعار منبه عند بدء هذا الحدث.',
+      );
   String get importance => _t('Importance', 'الأهمية');
+  String get repeat => _t('Repeat', 'التكرار');
+  String get repeatUntil =>
+      _t('Repeat until (optional)', 'التكرار حتى (اختياري)');
   String get locationOptional => _t('Location (optional)', 'الموقع (اختياري)');
-  String get descriptionOptional => _t('Description (optional)', 'الوصف (اختياري)');
+  String get descriptionOptional =>
+      _t('Description (optional)', 'الوصف (اختياري)');
   String get save => _t('Save', 'حفظ');
   String get cancel => _t('Cancel', 'إلغاء');
   String get delete => _t('Delete', 'حذف');
@@ -83,12 +130,21 @@ class AppStrings {
   String get conflictsWith => _t('This overlaps with:', 'يتعارض مع:');
   String get atStart => _t('At start', 'عند البدء');
   String get autoAtStartNote => _t(
-      'An at-start reminder is added automatically',
-      'يُضاف تذكير عند البدء تلقائيًا');
+        'An at-start reminder is added automatically',
+        'يُضاف تذكير عند البدء تلقائيًا',
+      );
   String reminderBefore(int minutes) {
-    if (minutes < 60) return ar ? 'قبل $minutes دقيقة' : '$minutes min before';
-    if (minutes < 1440) return ar ? 'قبل ${minutes ~/ 60} ساعة' : '${minutes ~/ 60} hour(s) before';
-    return ar ? 'قبل ${minutes ~/ 1440} يوم' : '${minutes ~/ 1440} day(s) before';
+    if (minutes < 60) {
+      return ar ? 'قبل $minutes دقيقة' : '$minutes min before';
+    }
+    if (minutes < 1440) {
+      return ar
+          ? 'قبل ${minutes ~/ 60} ساعة'
+          : '${minutes ~/ 60} hour(s) before';
+    }
+    return ar
+        ? 'قبل ${minutes ~/ 1440} يوم'
+        : '${minutes ~/ 1440} day(s) before';
   }
 
   String categoryName(String key) => switch (key) {
@@ -113,41 +169,72 @@ class AppStrings {
   String get noReminders => _t('No reminders', 'لا تذكيرات');
   String get fired => _t('fired', 'تم');
   String get testNotification => _t('Test notification', 'تجربة الإشعار');
-  String get testNotificationHint => _t('Fires one instantly to verify', 'يرسل إشعارًا فوريًا للتحقق');
+  String get testNotificationHint =>
+      _t('Fires one instantly to verify', 'يرسل إشعارًا فوريًا للتحقق');
   String get exactAlarmWarning => _t(
-      '⚠️ Exact-alarm permission is off — reminders may arrive slightly late. Enable it in Android Settings → Apps → Takka → Alarms & reminders.',
-      '⚠️ إذن المنبه الدقيق معطّل — قد تصل التذكيرات متأخرة قليلًا. فعّله من: إعدادات أندرويد ← التطبيقات ← مدير الوقت ← المنبهات والتذكيرات.');
+        '⚠️ Exact-alarm permission is off — reminders may arrive slightly late. Enable it in Android Settings → Apps → Takka → Alarms & reminders.',
+        '⚠️ إذن المنبه الدقيق معطّل — قد تصل التذكيرات متأخرة قليلًا. فعّله من: إعدادات أندرويد ← التطبيقات ← مدير الوقت ← المنبهات والتذكيرات.',
+      );
   String get addedByAi => _t('Added by AI', 'أُضيف بواسطة الذكاء الاصطناعي');
   String get addedManually => _t('Added manually', 'أُضيف يدويًا');
-  String get eventNotFound => _t('This event no longer exists.', 'هذا الحدث لم يعد موجودًا.');
+  String get eventNotFound =>
+      _t('This event no longer exists.', 'هذا الحدث لم يعد موجودًا.');
   String get backToToday => _t('Back to Today', 'العودة إلى اليوم');
 
   // AI
   String get sendToAi => _t('Send to AI', 'إرسال إلى الذكاء الاصطناعي');
-  String get offlineAi => _t('Offline — AI unavailable', 'غير متصل — الذكاء الاصطناعي غير متاح');
-  String get configureAiFirst => _t('Configure AI in Settings', 'اضبط الذكاء الاصطناعي من الإعدادات');
+  String get offlineAi =>
+      _t('Offline — AI unavailable', 'غير متصل — الذكاء الاصطناعي غير متاح');
+  String get configureAiFirst =>
+      _t('Configure AI in Settings', 'اضبط الذكاء الاصطناعي من الإعدادات');
   String get aiHint => _t(
-      'e.g. "Tomorrow I have a meeting at 10am, then gym at 6pm for an hour. Remind me 15 min before. Tasks: buy milk"',
-      'مثال: «غدًا اجتماع 10 صباحًا ثم الجيم 6 مساءً لمدة ساعة، ذكرني قبلها بـ15 دقيقة. مهام: شراء حليب»');
-  String get micUnavailable => _t('Microphone unavailable', 'الميكروفون غير متاح');
+        'e.g. "Tomorrow I have a meeting at 10am, then gym at 6pm for an hour. Remind me 15 min before. Tasks: buy milk"',
+        'مثال: «غدًا اجتماع 10 صباحًا ثم الجيم 6 مساءً لمدة ساعة، ذكرني قبلها بـ15 دقيقة. مهام: شراء حليب»',
+      );
+  String get micUnavailable =>
+      _t('Microphone unavailable', 'الميكروفون غير متاح');
   String get timeoutKept => _t(
-      'AI request timed out. Your text was kept — try again.',
-      'انتهت مهلة الطلب. تم الاحتفاظ بنصك — حاول مجددًا.');
-  String aiError(String m) => ar ? 'خطأ في الذكاء الاصطناعي: $m' : 'AI error: $m';
-  String get confirmSuggestions => _t('Confirm AI suggestions', 'تأكيد اقتراحات الذكاء الاصطناعي');
-  String get noExtractions => _t('No events were extracted.', 'لم يتم استخراج أي أحداث.');
+        'AI request timed out. Your text was kept — try again.',
+        'انتهت مهلة الطلب. تم الاحتفاظ بنصك — حاول مجددًا.',
+      );
+  String aiError(String m) =>
+      ar ? 'خطأ في الذكاء الاصطناعي: $m' : 'AI error: $m';
+  String get confirmSuggestions =>
+      _t('Confirm AI suggestions', 'تأكيد اقتراحات الذكاء الاصطناعي');
+  String get noExtractions =>
+      _t('No events were extracted.', 'لم يتم استخراج أي أحداث.');
   String get noTimeSpecified => _t('⚠️ No time specified', '⚠️ لم يُحدد وقت');
   String get setTime => _t('Set time', 'تحديد الوقت');
   String get addSelected => _t('Add Selected', 'إضافة المحدد');
-  String get aiSuggestedTime => _t('AI-suggested time', 'وقت مقترح من الذكاء الاصطناعي');
+  String get aiSuggestedTime =>
+      _t('AI-suggested time', 'وقت مقترح من الذكاء الاصطناعي');
+  String get proposedUpdates => _t('Proposed edits', 'تعديلات مقترحة');
+  String get proposedDeletes => _t('Proposed deletions', 'حذف مقترح');
+  String get unmatched => _t(
+        'No matching record found — skipped',
+        'لا يوجد سجل مطابق — تم التجاوز',
+      );
+  String get aiReviewWarnings =>
+      _t('Review before applying', 'راجع قبل التطبيق');
+  String get applySelected => _t('Apply selected', 'تطبيق المحدد');
+  String get applyFailed => _t(
+        'Some changes were not applied. Completed items were unselected; retry the remaining selections.',
+        'لم تُطبّق بعض التغييرات. أُزيل تحديد العناصر المكتملة؛ أعد المحاولة للعناصر المتبقية.',
+      );
 
   // Takka the mascot
   String get takkaName => _t('Takka', 'تكّة');
-  String get takkaIdle => _t("Hi! I'm Takka — your day, on time.", 'أهلًا! أنا تكّة — يومك في وقته.');
-  String get takkaSleepy => _t('Nothing planned… enjoy the calm ☕', 'لا شيء مخطط… استمتع بالهدوء ☕');
-  String get takkaHappy => _t('Amazing! Everything is done ✓', 'رائع! كل شيء منجز ✓');
+  String get takkaIdle => _t(
+        "Hi! I'm Takka — your day, on time.",
+        'أهلًا! أنا تكّة — يومك في وقته.',
+      );
+  String get takkaSleepy =>
+      _t('Nothing planned… enjoy the calm ☕', 'لا شيء مخطط… استمتع بالهدوء ☕');
+  String get takkaHappy =>
+      _t('Amazing! Everything is done ✓', 'رائع! كل شيء منجز ✓');
   String get takkaThinking => _t('Thinking…', 'أفكّر…');
-  String get takkaAlert => _t("Careful — there's a time conflict!", 'انتبه — يوجد تعارض في الوقت!');
+  String get takkaAlert =>
+      _t("Careful — there's a time conflict!", 'انتبه — يوجد تعارض في الوقت!');
 
   // Settings
   String get appearance => _t('APPEARANCE', 'المظهر');
@@ -163,53 +250,165 @@ class AppStrings {
   String get model => _t('Model', 'النموذج');
   String get baseUrl => _t('Base URL', 'عنوان الأساس');
   String get baseUrlHint => _t(
-      'Ollama emulator: http://10.0.2.2:11434/v1 • device: http://<PC-IP>:11434/v1',
-      'محاكي Ollama: http://10.0.2.2:11434/v1 • الجهاز: http://<PC-IP>:11434/v1');
+        'Ollama emulator: http://10.0.2.2:11434/v1 • device: http://<PC-IP>:11434/v1',
+        'محاكي Ollama: http://10.0.2.2:11434/v1 • الجهاز: http://<PC-IP>:11434/v1',
+      );
   String get apiKey => _t('API Key', 'مفتاح API');
-  String get apiKeyOptional => _t('API Key (optional for local)', 'مفتاح API (اختياري للمحلي)');
+  String get apiKeyOptional =>
+      _t('API Key (optional for local)', 'مفتاح API (اختياري للمحلي)');
   String get apiKeyHint => _t(
-      'Stored in Android Keystore. MVP only — production needs a backend proxy.',
-      'يُخزَّن في Android Keystore. مناسب للتجربة — للإنتاج يلزم وسيط خلفي.');
-  String get saveAiSettings => _t('Save AI Settings', 'حفظ إعدادات الذكاء الاصطناعي');
+        'Stored in Android Keystore. MVP only — production needs a backend proxy.',
+        'يُخزَّن في Android Keystore. مناسب للتجربة — للإنتاج يلزم وسيط خلفي.',
+      );
+  String get saveAiSettings =>
+      _t('Save AI Settings', 'حفظ إعدادات الذكاء الاصطناعي');
   String get saving => _t('Saving…', 'جارٍ الحفظ…');
-  String get aiSettingsSaved => _t('AI settings saved.', 'تم حفظ إعدادات الذكاء الاصطناعي.');
+  String get aiSettingsSaved =>
+      _t('AI settings saved.', 'تم حفظ إعدادات الذكاء الاصطناعي.');
+  String get aiSettingsFailed => _t(
+        'Could not save AI settings. Check the values and try again.',
+        'تعذر حفظ إعدادات الذكاء الاصطناعي. تحقق من القيم وحاول مجددًا.',
+      );
   String get appName => _t('Takka', 'Takka');
-  String get appSubtitle =>
-      _t('Local-first schedule engine with AI layer', 'محرك جدولة محلي مع طبقة ذكاء اصطناعي');
+  String get appSubtitle => _t(
+        'Local-first schedule engine with AI layer',
+        'محرك جدولة محلي مع طبقة ذكاء اصطناعي',
+      );
   String get developer => _t('DEVELOPER', 'المطوّر');
   String get sourceCode => _t('Source code', 'الكود المصدري');
+  String get checkForUpdates => _t('Check for updates', 'التحقق من التحديثات');
+  String get checkingForUpdates =>
+      _t('Checking for updates…', 'جارٍ التحقق من التحديثات…');
+  String get upToDate =>
+      _t('You’re using the latest version.', 'أنت تستخدم أحدث إصدار.');
+  String get updateCheckFailed => _t(
+        'Could not check GitHub Releases. Check your connection and make sure the Takka repository has a published release and is publicly accessible.',
+        'تعذر التحقق من إصدارات GitHub. تحقق من اتصالك ومن نشر إصدار لتكّة وإمكانية الوصول إلى المستودع للعامة.',
+      );
+  String updateAvailable(String version) => ar
+      ? 'يتوفر تحديث جديد ($version)'
+      : 'A new update is available ($version)';
+  String get releaseNotes => _t('What’s new', 'ما الجديد');
+  String get updateNow => _t('Download update', 'تنزيل التحديث');
+  String get later => _t('Later', 'لاحقًا');
+  String get noReleaseNotes => _t('Open the release page for details.',
+      'افتح صفحة الإصدار لمعرفة التفاصيل.');
   String get connectMe => _t('Connect with me', 'تواصل معي');
-  String get baseUrlAutoFilled => _t('Auto-filled for this provider. Edit if you use a proxy.', 'مُعبّأ تلقائيًا لهذا المزوّد. عدّله لو تستخدم وسيطًا.');
-  String get modelAutoFilled => _t('Default model for this provider. You can change it.', 'النموذج الافتراضي لهذا المزوّد. يمكنك تغييره.');
-  String get modelHint => _t('Enter the model identifier supplied by the endpoint.', 'أدخل معرّف النموذج الذي يقدمه الـendpoint.');
+  String get baseUrlAutoFilled => _t(
+        'Auto-filled for this provider. Edit if you use a proxy.',
+        'مُعبّأ تلقائيًا لهذا المزوّد. عدّله لو تستخدم وسيطًا.',
+      );
+  String get modelAutoFilled => _t(
+        'Default model for this provider. You can change it.',
+        'النموذج الافتراضي لهذا المزوّد. يمكنك تغييره.',
+      );
+  String get modelHint => _t(
+        'Enter the model identifier supplied by the endpoint.',
+        'أدخل معرّف النموذج الذي يقدمه الـendpoint.',
+      );
 
   // Notification diagnostics
-  String get notifDiagnostics => _t('Notification diagnostics', 'تشخيص الإشعارات');
+  String get notifDiagnostics =>
+      _t('Notification diagnostics', 'تشخيص الإشعارات');
   String get exactAlarms => _t('Exact alarms', 'المنبهات الدقيقة');
   String get enabled => _t('Enabled ✓', 'مفعّلة ✓');
   String get disabledFix => _t('Disabled — tap Fix', 'معطّلة — اضغط إصلاح');
   String get fixAction => _t('Fix', 'إصلاح');
-  String get batteryOptimization => _t('Battery optimization', 'تحسين البطارية');
+  String get batteryOptimization =>
+      _t('Battery optimization', 'تحسين البطارية');
   String get exempted => _t('Exempted ✓', 'مستثنى ✓');
-  String get notExempted => _t('Not exempted — alarms may be killed', 'غير مستثنى — قد تُلغى التنبيهات');
+  String get notExempted => _t(
+        'Not exempted — alarms may be killed',
+        'غير مستثنى — قد تُلغى التنبيهات',
+      );
   String get requestExemption => _t('Request', 'طلب');
-  String get autostart => _t('Autostart (Xiaomi/Huawei/Oppo/Vivo/Samsung)', 'التشغيل التلقائي (شاومي/هواوي/أوبو/فيفو/سامسونج)');
+  String get autostart => _t(
+        'Autostart (Xiaomi/Huawei/Oppo/Vivo/Samsung)',
+        'التشغيل التلقائي (شاومي/هواوي/أوبو/فيفو/سامسونج)',
+      );
   String get openAction => _t('Open', 'فتح');
-  String get pendingAlarms => _t('Pending scheduled alarms', 'التنبيهات المجدولة القادمة');
-  String get rescheduleAll => _t('Reschedule all notifications', 'إعادة جدولة كل التنبيهات');
-  String get testIn15 => _t('Test scheduling (fires in 15 seconds)', 'اختبار الجدولة (يظهر بعد 15 ثانية)');
-  String get testHint => _t('Minimize the app (do NOT close it) and wait 15–20 seconds.', 'صغّر التطبيق (لا تُغلقه) وانتظر 15–20 ثانية.');
+  String get pendingAlarms =>
+      _t('Pending scheduled alarms', 'التنبيهات المجدولة القادمة');
+  String get notificationPermission =>
+      _t('App notifications', 'إشعارات التطبيق');
+  String get notificationServiceNotReady =>
+      _t('Not initialized — tap Retry', 'لم تبدأ — اضغط إعادة المحاولة');
+  String get notificationPermissionOff => _t(
+        'Off — allow notifications in Android settings',
+        'معطلة — فعّل الإشعارات من إعدادات أندرويد',
+      );
+  String pendingCounts(int saved, int device) => ar
+      ? 'محفوظ: $saved • مجدول في أندرويد: $device'
+      : 'Saved: $saved • Scheduled by Android: $device';
+  String get testNotificationNow =>
+      _t('Send a test notification now', 'إرسال إشعار تجريبي الآن');
+  String get testNotificationFailed => _t(
+        'Android could not post the test. Check notification settings.',
+        'تعذر على أندرويد إرسال الاختبار. تحقق من إعدادات الإشعارات.',
+      );
+  String get scheduledTestFailed => _t(
+        'Could not schedule the test. Check exact-alarm permission.',
+        'تعذرت جدولة الاختبار. تحقق من إذن المنبهات الدقيقة.',
+      );
+  String get rescheduleAll =>
+      _t('Reschedule all notifications', 'إعادة جدولة كل التنبيهات');
+  String get testIn15 => _t(
+        'Test scheduling (fires in 15 seconds)',
+        'اختبار الجدولة (يظهر بعد 15 ثانية)',
+      );
+  String get testHint => _t(
+        'Minimize the app (do NOT close it) and wait 15–20 seconds.',
+        'صغّر التطبيق (لا تُغلقه) وانتظر 15–20 ثانية.',
+      );
   String get doneMsg => _t('Done', 'تم');
 
   // Sounds & Alarm Mode
   String get soundAndAlerts => _t('SOUNDS & ALARMS', 'الأصوات والمنبه');
+  String get defaultEventAlarm => _t(
+        'Default alarm for new events',
+        'المنبه الافتراضي للأحداث الجديدة',
+      );
+  String get defaultEventAlarmSubtitle => _t(
+        'New events start with an alarm notification. Change it per event.',
+        'تبدأ الأحداث الجديدة بإشعار منبه. يمكنك تغييره لكل حدث.',
+      );
   String get soundEffects => _t('Sound effects', 'المؤثرات الصوتية');
-  String get soundEffectsSubtitle => _t('Audio feedback for tasks, mascot & saving', 'تأثيرات صوتية للمهام والتكة والحفظ');
+  String get soundEffectsSubtitle => _t(
+        'Audio feedback for tasks, mascot & saving',
+        'تأثيرات صوتية للمهام والتكة والحفظ',
+      );
   String get soundThemeTitle => _t('Sound theme', 'نمط المؤثرات الصوتية');
   String get reminderRingtone => _t('Reminder ringtone', 'نغمة التذكير');
-  String get ringtoneSubtitle => _t('Custom melody for reminders and alarms', 'نغمة مخصصة للتذكيرات والمنبه');
+  String get localAlarmSound => _t(
+        'Local alarm sound (stored on this phone)',
+        'صوت منبه محلي (محفوظ على الهاتف)',
+      );
+  String get chooseAlarmSound => _t('Choose audio file', 'اختيار ملف صوتي');
+  String get noLocalAlarmSound =>
+      _t('Using the selected built-in ringtone', 'استخدام نغمة المنبه المحددة');
+  String get clearLocalAlarmSound =>
+      _t('Use built-in ringtone', 'استخدام النغمة الافتراضية');
+  String get alarmSoundSaved => _t(
+        'Local alarm sound saved on this phone.',
+        'تم حفظ صوت المنبه محليًا على الهاتف.',
+      );
+  String get alarmSoundCleared => _t(
+        'Using the built-in ringtone again.',
+        'تمت العودة إلى نغمة المنبه الافتراضية.',
+      );
+  String get alarmSoundPickerFailed => _t(
+        'Could not load that audio file. Try another audio file.',
+        'تعذر تحميل الملف الصوتي. جرّب ملفًا آخر.',
+      );
+  String get ringtoneSubtitle => _t(
+        'Custom melody for reminders and alarms',
+        'نغمة مخصصة للتذكيرات والمنبه',
+      );
   String get alarmMode => _t('Alarm mode', 'وضع المنبه');
-  String get alarmModeSubtitle => _t('Rings continuously with snooze until dismissed', 'رنين مستمر مع خيار الغفوة حتى الإلغاء');
+  String get alarmModeSubtitle => _t(
+        'Rings continuously with snooze until dismissed',
+        'رنين مستمر مع خيار الغفوة حتى الإلغاء',
+      );
   String get snoozeDuration => _t('Snooze duration', 'مدة الغفوة');
   String get snoozeAction => _t('Snooze', 'غفوة');
   String get dismissAction => _t('Dismiss', 'إيقاف');

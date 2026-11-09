@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.util.Log
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -24,7 +25,8 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
         if (action in listOf(
                 ACTION_WIDGET_TICK,
                 Intent.ACTION_BOOT_COMPLETED,
-                ACTION_TIME_SET,
+                Intent.ACTION_MY_PACKAGE_REPLACED,
+                Intent.ACTION_TIME_CHANGED,
                 Intent.ACTION_TIMEZONE_CHANGED
             )
         ) {
@@ -32,6 +34,7 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
             val thisWidget = ComponentName(context, NextUpWidgetProvider::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
             val prefs = getSharedPreferences(context)
+            Log.d("TakkaWidget", "refresh action=$action widgets=${appWidgetIds.size}")
             onUpdate(context, appWidgetManager, appWidgetIds, prefs)
         }
     }
@@ -130,6 +133,7 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
             }
             appWidgetManager.updateAppWidget(widgetId, views)
         }
+        Log.d("TakkaWidget", "updated widgets=${appWidgetIds.size} badge=$badge title=$title")
 
         // Schedule next exact alarm so widget refreshes the instant an event starts or finishes
         scheduleNextRefresh(context, nextTransitionMs, now)
@@ -194,7 +198,6 @@ class NextUpWidgetProvider : HomeWidgetProvider() {
 
     companion object {
         const val ACTION_WIDGET_TICK = "com.example.takka.ACTION_WIDGET_TICK"
-        private const val ACTION_TIME_SET = "android.intent.action.TIME_SET"
         private const val ALARM_REQUEST_CODE = 44211
     }
 }

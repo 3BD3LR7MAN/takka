@@ -30,8 +30,12 @@ IconData getCategoryIcon(String category) =>
     categoryIcons[category] ?? Icons.event_rounded;
 
 class EventCard extends StatelessWidget {
-  const EventCard(
-      {super.key, required this.event, required this.segment, this.onTap});
+  const EventCard({
+    super.key,
+    required this.event,
+    required this.segment,
+    this.onTap,
+  });
   final Event event;
   final DaySegment segment;
   final VoidCallback? onTap;
@@ -44,7 +48,7 @@ class EventCard extends StatelessWidget {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Card(
-      color: color.withOpacity(.14),
+      color: color.withValues(alpha: .14),
       margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -52,7 +56,9 @@ class EventCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: BorderDirectional(start: BorderSide(color: color, width: 4)),
+            border: BorderDirectional(
+              start: BorderSide(color: color, width: 4),
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Column(
@@ -66,8 +72,11 @@ class EventCard extends StatelessWidget {
                   if (segment.continuesFromPrevDay)
                     Padding(
                       padding: const EdgeInsets.only(right: 2),
-                      child: Icon(isRtl ? Icons.arrow_forward : Icons.arrow_back,
-                          size: 11, color: Colors.grey),
+                      child: Icon(
+                        isRtl ? Icons.arrow_forward : Icons.arrow_back,
+                        size: 11,
+                        color: Colors.grey,
+                      ),
                     ),
                   Expanded(
                     child: Text(
@@ -84,8 +93,11 @@ class EventCard extends StatelessWidget {
                   if (segment.continuesToNextDay)
                     Padding(
                       padding: const EdgeInsets.only(left: 2),
-                      child: Icon(isRtl ? Icons.arrow_back : Icons.arrow_forward,
-                          size: 11, color: Colors.grey),
+                      child: Icon(
+                        isRtl ? Icons.arrow_back : Icons.arrow_forward,
+                        size: 11,
+                        color: Colors.grey,
+                      ),
                     ),
                   if (event.importance == 'critical')
                     const Padding(

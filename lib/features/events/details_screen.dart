@@ -7,6 +7,7 @@ import '../../core/sound_service.dart';
 import '../../data/db.dart';
 import '../../data/notification_service.dart';
 import '../../data/repositories.dart';
+import '../../domain/event_engine.dart';
 import 'event_card.dart';
 import 'providers.dart';
 
@@ -23,9 +24,22 @@ class EventDetailsScreen extends ConsumerWidget {
     return async.when(
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(
+      error: (_, __) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('Error: $e')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(s.loadFailed),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(eventProvider(id)),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(s.retry),
+              ),
+            ],
+          ),
+        ),
       ),
       data: (e) {
         if (e == null) {
@@ -74,13 +88,17 @@ class EventDetailsScreen extends ConsumerWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.schedule_rounded),
-                title: Text(e.isAllDay
-                    ? '${s.allDay} • ${fmtShortDate(start, lang)}'
-                    : '${fmtDateTime(start, lang)} – ${fmtDateTime(end, lang)}'),
+                title: Text(
+                  e.isAllDay
+                      ? '${s.allDay} • ${fmtShortDate(start, lang)}'
+                      : '${fmtDateTime(start, lang)} – ${fmtDateTime(end, lang)}',
+                ),
               ),
               ListTile(
-                leading: Icon(getCategoryIcon(e.category),
-                    color: categoryColors[e.category] ?? scheme.primary),
+                leading: Icon(
+                  getCategoryIcon(e.category),
+                  color: categoryColors[e.category] ?? scheme.primary,
+                ),
                 title: Text(s.categoryName(e.category)),
               ),
               ListTile(
@@ -97,16 +115,31 @@ class EventDetailsScreen extends ConsumerWidget {
                           : scheme.primary),
                 ),
                 title: Text(
-                    '${s.importance}: ${s.importanceName(e.importance)}'),
+                  '${s.importance}: ${s.importanceName(e.importance)}',
+                ),
               ),
+              if (e.repeatRule != 'none' && e.repeatRule.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.repeat_rounded),
+                  title: Text(
+                    '${s.repeat}: ${repeatRuleLabel(e.repeatRule, s.ar)}',
+                  ),
+                  subtitle: e.repeatUntil == null
+                      ? null
+                      : Text(
+                          '${s.repeatUntil}: ${fmtShortDate(DateTime.fromMillisecondsSinceEpoch(e.repeatUntil!), lang)}',
+                        ),
+                ),
               if (e.location != null && e.location!.isNotEmpty)
                 ListTile(
-                    leading: const Icon(Icons.place_rounded),
-                    title: Text(e.location!)),
+                  leading: const Icon(Icons.place_rounded),
+                  title: Text(e.location!),
+                ),
               if (e.description != null && e.description!.isNotEmpty)
                 ListTile(
-                    leading: const Icon(Icons.notes_rounded),
-                    title: Text(e.description!)),
+                  leading: const Icon(Icons.notes_rounded),
+                  title: Text(e.description!),
+                ),
               ListTile(
                 leading: Icon(
                   e.source == 'ai'
@@ -117,8 +150,10 @@ class EventDetailsScreen extends ConsumerWidget {
                 title: Text(e.source == 'ai' ? s.addedByAi : s.addedManually),
               ),
               const SizedBox(height: 8),
-              Text('  ${s.remindersSection}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                '  ${s.remindersSection}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
               _RemindersList(event: e),
               Card(
                 child: ListTile(
@@ -128,17 +163,25 @@ class EventDetailsScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.play_circle_outline_rounded),
                   onTap: () {
                     SoundService.instance.playClick();
-                    NotificationService.instance
-                        .showTest(e.title, importance: e.importance);
+                    NotificationService.instance.showTest(
+                      e.title,
+                      importance: e.importance,
+                    );
                   },
                 ),
               ),
               Card(
                 child: ListTile(
-                  leading: const Icon(Icons.alarm_on_rounded, color: Colors.red),
+                  leading: const Icon(
+                    Icons.alarm_on_rounded,
+                    color: Colors.red,
+                  ),
                   title: Text(s.testAlarmNow),
                   subtitle: Text(s.alarmModeSubtitle),
-                  trailing: const Icon(Icons.play_circle_fill_rounded, color: Colors.red),
+                  trailing: const Icon(
+                    Icons.play_circle_fill_rounded,
+                    color: Colors.red,
+                  ),
                   onTap: () {
                     SoundService.instance.triggerAlarm(
                       eventId: e.id,
@@ -153,38 +196,12 @@ class EventDetailsScreen extends ConsumerWidget {
               if (!NotificationService.instance.exactAlarmsGranted)
                 Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Text(s.exactAlarmWarning,
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.orange)),
+                  child: Text(
+                    s.exactAlarmWarning,
+                    style: const TextStyle(fontSize: 12, color: Colors.orange),
+                  ),
                 ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.push('/event/${e.id}/edit'),
-                      icon: const Icon(Icons.edit),
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(s.edit),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red.shade700),
-                      onPressed: () => _confirmDelete(context, ref, e),
-                      icon: const Icon(Icons.delete),
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(s.delete),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 16),
             ],
           ),
         );
@@ -193,7 +210,10 @@ class EventDetailsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Event e) async {
+    BuildContext context,
+    WidgetRef ref,
+    Event e,
+  ) async {
     final s = AppStrings.of(context);
     final ok = await showDialog<bool>(
       context: context,
@@ -202,11 +222,11 @@ class EventDetailsScreen extends ConsumerWidget {
         content: Text(s.deleteEventBody(e.title)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.cancel)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.cancel),
+          ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(s.delete),
           ),
@@ -232,40 +252,66 @@ class _RemindersList extends ConsumerWidget {
     final now = DateTime.now();
 
     return async.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => ListTile(
+        leading: const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        title: Text(s.loading),
+      ),
+      error: (_, __) => ListTile(
+        leading: const Icon(Icons.error_outline),
+        title: Text(s.loadFailed),
+        trailing: IconButton(
+          tooltip: s.retry,
+          onPressed: () => ref.invalidate(remindersProvider(event.id)),
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ),
       data: (reminders) {
         if (reminders.isEmpty) {
           return ListTile(
-              leading: const Icon(Icons.alarm_off),
-              title: Text(s.noReminders));
+            leading: const Icon(Icons.alarm_off),
+            title: Text(s.noReminders),
+          );
         }
         final sorted = [...reminders]
           ..sort((a, b) => b.offsetMinutes.compareTo(a.offsetMinutes));
         return Column(
           children: [
             for (final r in sorted)
-              Builder(builder: (context) {
-                var fire = start.subtract(Duration(minutes: r.offsetMinutes));
-                if (event.isAllDay) {
-                  fire = DateTime(start.year, start.month, start.day, 9)
-                      .subtract(Duration(minutes: r.offsetMinutes));
-                }
-                final past = fire.isBefore(now);
-                return ListTile(
-                  leading: Icon(
-                    r.offsetMinutes == 0 ? Icons.play_circle : Icons.alarm,
-                    color: past ? Colors.grey : null,
-                  ),
-                  title: Text(r.offsetMinutes == 0
-                      ? s.atStart
-                      : s.reminderBefore(r.offsetMinutes)),
-                  subtitle: Text(past
-                      ? '${fmtDateTime(fire, lang)} • ${s.fired}'
-                      : fmtDateTime(fire, lang)),
-                  textColor: past ? Colors.grey : null,
-                );
-              }),
+              Builder(
+                builder: (context) {
+                  var fire = start.subtract(Duration(minutes: r.offsetMinutes));
+                  if (event.isAllDay) {
+                    fire = DateTime(
+                      start.year,
+                      start.month,
+                      start.day,
+                      9,
+                    ).subtract(Duration(minutes: r.offsetMinutes));
+                  }
+                  final past = fire.isBefore(now);
+                  return ListTile(
+                    leading: Icon(
+                      r.offsetMinutes == 0 ? Icons.play_circle : Icons.alarm,
+                      color: past ? Colors.grey : null,
+                    ),
+                    title: Text(
+                      r.offsetMinutes == 0
+                          ? s.atStart
+                          : s.reminderBefore(r.offsetMinutes),
+                    ),
+                    subtitle: Text(
+                      past
+                          ? '${fmtDateTime(fire, lang)} • ${s.fired}'
+                          : fmtDateTime(fire, lang),
+                    ),
+                    textColor: past ? Colors.grey : null,
+                  );
+                },
+              ),
           ],
         );
       },

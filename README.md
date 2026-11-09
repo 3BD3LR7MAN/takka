@@ -10,28 +10,20 @@
 
 ## Latest release
 
-[Takka v1.0.1](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.1) — build `1.0.1+2`
+[Takka v1.0.14](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.14) — build `1.0.14+15`
 
-The latest release adds customizable action sounds, selectable reminder ringtones with previews, persistent Alarm Mode for critical events, configurable snooze durations, improved Arabic RTL visuals, clearer category icons, and a live Next Up home-screen widget.
+This release adds GitHub Releases update checks, a weekly calendar view, and the native Android alarm reliability work introduced in the v1.0.13 line. Takka can now check for stable updates automatically at startup, no more than once every 24 hours, or on demand from Settings.
 
-### Download the Android APK
+The update dialog shows release notes and opens an attached APK directly when one is available; otherwise it opens the GitHub release page.
 
-[Download Takka v1.0.1 APK](https://github.com/3BD3LR7MAN/takka/releases/download/v1.0.1/takka-v1.0.1-release-debug-signed.apk) · [SHA-256 checksum](https://github.com/3BD3LR7MAN/takka/releases/download/v1.0.1/takka-v1.0.1-release-debug-signed.apk.sha256)
-
-SHA-256:
-
-```text
-8be2896447b004807c7b88d1e52e6511ee52fc7eaac7be0a543b0113bd999f33
-```
-
-> **APK signing note:** This APK is a release-mode build using the Android debug-signing fallback because production keystore secrets are not configured in the repository. It is suitable for development and validation, not production distribution. See [GITHUB_SIGNING.md](docs/GITHUB_SIGNING.md) for production signing setup.
+> **Repository requirement:** update checks use the unauthenticated public GitHub Releases API for `3BD3LR7MAN/takka`. The repository must remain publicly accessible for end-user update checks to work. Never embed a GitHub personal access token in the Android application.
 
 ## Features
 
 ### Planning and organization
 
 - Manual event creation and editing with conflict detection
-- Daily timeline and monthly calendar views
+- Daily timeline, weekly calendar, and monthly calendar views
 - Task checklist management
 - Local-first storage for events, reminders, tasks, and notification records
 - Light, dark, and system themes
@@ -40,6 +32,7 @@ SHA-256:
 ### Reminders and alarms
 
 - Scheduled Android reminders with exact-alarm support and fallback behavior
+- Native Android alarm scheduler and foreground audio service with Stop/Snooze controls
 - Custom reminder ringtones with live preview
 - Persistent Alarm Mode for critical events
 - Configurable 5-, 10-, and 15-minute snooze durations
@@ -142,6 +135,7 @@ Android manufacturer policies may still delay or suppress alarms when background
 - [Security guidance](docs/SECURITY.md)
 - [Build guide](docs/BUILD.md)
 - [Release guide](docs/RELEASE.md)
+- [v1.0.14 release notes](docs/RELEASE_NOTES_v1.0.14.md)
 - [v1.0.1 release notes](docs/RELEASE_NOTES_v1.0.1.md)
 
 ## Privacy and security
@@ -169,7 +163,7 @@ The current release does not include:
 | Application | Takka |
 | Dart package | `takka` |
 | Android application ID | `com.example.takka` |
-| Current version | `1.0.1+2` |
+| Current version | `1.0.14+15` |
 | Minimum Android API | 23 |
 | Compile SDK | API 36 |
 | License | MIT |

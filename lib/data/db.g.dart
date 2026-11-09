@@ -86,6 +86,20 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
   late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
       'updated_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _repeatRuleMeta =
+      const VerificationMeta('repeatRule');
+  @override
+  late final GeneratedColumn<String> repeatRule = GeneratedColumn<String>(
+      'repeat_rule', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('none'));
+  static const VerificationMeta _repeatUntilMeta =
+      const VerificationMeta('repeatUntil');
+  @override
+  late final GeneratedColumn<int> repeatUntil = GeneratedColumn<int>(
+      'repeat_until', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -99,7 +113,9 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         importance,
         source,
         createdAt,
-        updatedAt
+        updatedAt,
+        repeatRule,
+        repeatUntil
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -174,6 +190,18 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('repeat_rule')) {
+      context.handle(
+          _repeatRuleMeta,
+          repeatRule.isAcceptableOrUnknown(
+              data['repeat_rule']!, _repeatRuleMeta));
+    }
+    if (data.containsKey('repeat_until')) {
+      context.handle(
+          _repeatUntilMeta,
+          repeatUntil.isAcceptableOrUnknown(
+              data['repeat_until']!, _repeatUntilMeta));
+    }
     return context;
   }
 
@@ -207,6 +235,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      repeatRule: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}repeat_rule'])!,
+      repeatUntil: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}repeat_until']),
     );
   }
 
@@ -229,6 +261,8 @@ class Event extends DataClass implements Insertable<Event> {
   final String source;
   final int createdAt;
   final int updatedAt;
+  final String repeatRule;
+  final int? repeatUntil;
   const Event(
       {required this.id,
       required this.title,
@@ -241,7 +275,9 @@ class Event extends DataClass implements Insertable<Event> {
       required this.importance,
       required this.source,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.repeatRule,
+      this.repeatUntil});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -261,6 +297,10 @@ class Event extends DataClass implements Insertable<Event> {
     map['source'] = Variable<String>(source);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
+    map['repeat_rule'] = Variable<String>(repeatRule);
+    if (!nullToAbsent || repeatUntil != null) {
+      map['repeat_until'] = Variable<int>(repeatUntil);
+    }
     return map;
   }
 
@@ -282,6 +322,10 @@ class Event extends DataClass implements Insertable<Event> {
       source: Value(source),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      repeatRule: Value(repeatRule),
+      repeatUntil: repeatUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeatUntil),
     );
   }
 
@@ -301,6 +345,8 @@ class Event extends DataClass implements Insertable<Event> {
       source: serializer.fromJson<String>(json['source']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      repeatRule: serializer.fromJson<String>(json['repeatRule']),
+      repeatUntil: serializer.fromJson<int?>(json['repeatUntil']),
     );
   }
   @override
@@ -319,6 +365,8 @@ class Event extends DataClass implements Insertable<Event> {
       'source': serializer.toJson<String>(source),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
+      'repeatRule': serializer.toJson<String>(repeatRule),
+      'repeatUntil': serializer.toJson<int?>(repeatUntil),
     };
   }
 
@@ -334,7 +382,9 @@ class Event extends DataClass implements Insertable<Event> {
           String? importance,
           String? source,
           int? createdAt,
-          int? updatedAt}) =>
+          int? updatedAt,
+          String? repeatRule,
+          Value<int?> repeatUntil = const Value.absent()}) =>
       Event(
         id: id ?? this.id,
         title: title ?? this.title,
@@ -348,6 +398,8 @@ class Event extends DataClass implements Insertable<Event> {
         source: source ?? this.source,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        repeatRule: repeatRule ?? this.repeatRule,
+        repeatUntil: repeatUntil.present ? repeatUntil.value : this.repeatUntil,
       );
   Event copyWithCompanion(EventsCompanion data) {
     return Event(
@@ -365,6 +417,10 @@ class Event extends DataClass implements Insertable<Event> {
       source: data.source.present ? data.source.value : this.source,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      repeatRule:
+          data.repeatRule.present ? data.repeatRule.value : this.repeatRule,
+      repeatUntil:
+          data.repeatUntil.present ? data.repeatUntil.value : this.repeatUntil,
     );
   }
 
@@ -382,14 +438,29 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('importance: $importance, ')
           ..write('source: $source, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('repeatRule: $repeatRule, ')
+          ..write('repeatUntil: $repeatUntil')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, description, startDt, endDt,
-      isAllDay, category, location, importance, source, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      title,
+      description,
+      startDt,
+      endDt,
+      isAllDay,
+      category,
+      location,
+      importance,
+      source,
+      createdAt,
+      updatedAt,
+      repeatRule,
+      repeatUntil);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -405,7 +476,9 @@ class Event extends DataClass implements Insertable<Event> {
           other.importance == this.importance &&
           other.source == this.source &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.repeatRule == this.repeatRule &&
+          other.repeatUntil == this.repeatUntil);
 }
 
 class EventsCompanion extends UpdateCompanion<Event> {
@@ -421,6 +494,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String> source;
   final Value<int> createdAt;
   final Value<int> updatedAt;
+  final Value<String> repeatRule;
+  final Value<int?> repeatUntil;
   final Value<int> rowid;
   const EventsCompanion({
     this.id = const Value.absent(),
@@ -435,6 +510,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.source = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.repeatRule = const Value.absent(),
+    this.repeatUntil = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EventsCompanion.insert({
@@ -450,6 +527,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.source = const Value.absent(),
     required int createdAt,
     required int updatedAt,
+    this.repeatRule = const Value.absent(),
+    this.repeatUntil = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         title = Value(title),
@@ -470,6 +549,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? source,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
+    Expression<String>? repeatRule,
+    Expression<int>? repeatUntil,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -485,6 +566,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (source != null) 'source': source,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (repeatRule != null) 'repeat_rule': repeatRule,
+      if (repeatUntil != null) 'repeat_until': repeatUntil,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -502,6 +585,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
       Value<String>? source,
       Value<int>? createdAt,
       Value<int>? updatedAt,
+      Value<String>? repeatRule,
+      Value<int?>? repeatUntil,
       Value<int>? rowid}) {
     return EventsCompanion(
       id: id ?? this.id,
@@ -516,6 +601,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
       source: source ?? this.source,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      repeatRule: repeatRule ?? this.repeatRule,
+      repeatUntil: repeatUntil ?? this.repeatUntil,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -559,6 +646,12 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (repeatRule.present) {
+      map['repeat_rule'] = Variable<String>(repeatRule.value);
+    }
+    if (repeatUntil.present) {
+      map['repeat_until'] = Variable<int>(repeatUntil.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -580,6 +673,8 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('source: $source, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('repeatRule: $repeatRule, ')
+          ..write('repeatUntil: $repeatUntil, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1488,6 +1583,8 @@ typedef $$EventsTableCreateCompanionBuilder = EventsCompanion Function({
   Value<String> source,
   required int createdAt,
   required int updatedAt,
+  Value<String> repeatRule,
+  Value<int?> repeatUntil,
   Value<int> rowid,
 });
 typedef $$EventsTableUpdateCompanionBuilder = EventsCompanion Function({
@@ -1503,6 +1600,8 @@ typedef $$EventsTableUpdateCompanionBuilder = EventsCompanion Function({
   Value<String> source,
   Value<int> createdAt,
   Value<int> updatedAt,
+  Value<String> repeatRule,
+  Value<int?> repeatUntil,
   Value<int> rowid,
 });
 
@@ -1511,13 +1610,13 @@ final class $$EventsTableReferences
   $$EventsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$RemindersTable, List<Reminder>>
-      _remindersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.reminders,
-          aliasName: $_aliasNameGenerator(db.events.id, db.reminders.eventId));
+      _remindersRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.reminders,
+              aliasName: 'events__id__reminders__event_id');
 
   $$RemindersTableProcessedTableManager get remindersRefs {
     final manager = $$RemindersTableTableManager($_db, $_db.reminders)
-        .filter((f) => f.eventId.id($_item.id));
+        .filter((f) => f.eventId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_remindersRefsTable($_db));
     return ProcessedTableManager(
@@ -1569,6 +1668,12 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get repeatUntil => $composableBuilder(
+      column: $table.repeatUntil, builder: (column) => ColumnFilters(column));
 
   Expression<bool> remindersRefs(
       Expression<bool> Function($$RemindersTableFilterComposer f) f) {
@@ -1636,6 +1741,12 @@ class $$EventsTableOrderingComposer
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get repeatUntil => $composableBuilder(
+      column: $table.repeatUntil, builder: (column) => ColumnOrderings(column));
 }
 
 class $$EventsTableAnnotationComposer
@@ -1682,6 +1793,12 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get repeatRule => $composableBuilder(
+      column: $table.repeatRule, builder: (column) => column);
+
+  GeneratedColumn<int> get repeatUntil => $composableBuilder(
+      column: $table.repeatUntil, builder: (column) => column);
 
   Expression<T> remindersRefs<T extends Object>(
       Expression<T> Function($$RemindersTableAnnotationComposer a) f) {
@@ -1740,6 +1857,8 @@ class $$EventsTableTableManager extends RootTableManager<
             Value<String> source = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
+            Value<String> repeatRule = const Value.absent(),
+            Value<int?> repeatUntil = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               EventsCompanion(
@@ -1755,6 +1874,8 @@ class $$EventsTableTableManager extends RootTableManager<
             source: source,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            repeatRule: repeatRule,
+            repeatUntil: repeatUntil,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -1770,6 +1891,8 @@ class $$EventsTableTableManager extends RootTableManager<
             Value<String> source = const Value.absent(),
             required int createdAt,
             required int updatedAt,
+            Value<String> repeatRule = const Value.absent(),
+            Value<int?> repeatUntil = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               EventsCompanion.insert(
@@ -1785,11 +1908,15 @@ class $$EventsTableTableManager extends RootTableManager<
             source: source,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            repeatRule: repeatRule,
+            repeatUntil: repeatUntil,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$EventsTableReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$EventsTable, Event>(table),
+                    $$EventsTableReferences(db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: ({remindersRefs = false}) {
             return PrefetchHooks(
@@ -1799,7 +1926,7 @@ class $$EventsTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (remindersRefs)
-                    await $_getPrefetchedData(
+                    await $_getPrefetchedData<Event, $EventsTable, Reminder>(
                         currentTable: table,
                         referencedTable:
                             $$EventsTableReferences._remindersRefsTable(db),
@@ -1848,12 +1975,14 @@ final class $$RemindersTableReferences
     extends BaseReferences<_$AppDatabase, $RemindersTable, Reminder> {
   $$RemindersTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $EventsTable _eventIdTable(_$AppDatabase db) => db.events
-      .createAlias($_aliasNameGenerator(db.reminders.eventId, db.events.id));
+  static $EventsTable _eventIdTable(_$AppDatabase db) =>
+      db.events.createAlias('reminders__event_id__events__id');
 
   $$EventsTableProcessedTableManager get eventId {
+    final $_column = $_itemColumn<String>('event_id')!;
+
     final manager = $$EventsTableTableManager($_db, $_db.events)
-        .filter((f) => f.id($_item.eventId));
+        .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_eventIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
@@ -1864,14 +1993,13 @@ final class $$RemindersTableReferences
       List<ScheduledNotifRow>> _scheduledNotificationsRefsTable(
           _$AppDatabase db) =>
       MultiTypedResultKey.fromTable(db.scheduledNotifications,
-          aliasName: $_aliasNameGenerator(
-              db.reminders.id, db.scheduledNotifications.reminderId));
+          aliasName: 'reminders__id__scheduled_notifications__reminder_id');
 
   $$ScheduledNotificationsTableProcessedTableManager
       get scheduledNotificationsRefs {
     final manager = $$ScheduledNotificationsTableTableManager(
             $_db, $_db.scheduledNotifications)
-        .filter((f) => f.reminderId.id($_item.id));
+        .filter((f) => f.reminderId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache =
         $_typedResult.readTableOrNull(_scheduledNotificationsRefsTable($_db));
@@ -2096,7 +2224,7 @@ class $$RemindersTableTableManager extends RootTableManager<
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
-                    e.readTable(table),
+                    e.readTable<$RemindersTable, Reminder>(table),
                     $$RemindersTableReferences(db, table, e)
                   ))
               .toList(),
@@ -2136,7 +2264,8 @@ class $$RemindersTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (scheduledNotificationsRefs)
-                    await $_getPrefetchedData(
+                    await $_getPrefetchedData<Reminder, $RemindersTable,
+                            ScheduledNotifRow>(
                         currentTable: table,
                         referencedTable: $$RemindersTableReferences
                             ._scheduledNotificationsRefsTable(db),
@@ -2186,13 +2315,14 @@ final class $$ScheduledNotificationsTableReferences extends BaseReferences<
   $$ScheduledNotificationsTableReferences(
       super.$_db, super.$_table, super.$_typedResult);
 
-  static $RemindersTable _reminderIdTable(_$AppDatabase db) =>
-      db.reminders.createAlias($_aliasNameGenerator(
-          db.scheduledNotifications.reminderId, db.reminders.id));
+  static $RemindersTable _reminderIdTable(_$AppDatabase db) => db.reminders
+      .createAlias('scheduled_notifications__reminder_id__reminders__id');
 
   $$RemindersTableProcessedTableManager get reminderId {
+    final $_column = $_itemColumn<String>('reminder_id')!;
+
     final manager = $$RemindersTableTableManager($_db, $_db.reminders)
-        .filter((f) => f.id($_item.reminderId));
+        .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_reminderIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
@@ -2371,7 +2501,8 @@ class $$ScheduledNotificationsTableTableManager extends RootTableManager<
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
-                    e.readTable(table),
+                    e.readTable<$ScheduledNotificationsTable,
+                        ScheduledNotifRow>(table),
                     $$ScheduledNotificationsTableReferences(db, table, e)
                   ))
               .toList(),
@@ -2573,7 +2704,11 @@ class $$TasksTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable<$TasksTable, Task>(table),
+                    BaseReferences<_$AppDatabase, $TasksTable, Task>(
+                        db, table, e)
+                  ))
               .toList(),
           prefetchHooksCallback: null,
         ));

@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 
 import '../../core/l10n.dart';
 import '../../data/repositories.dart';
+import 'ai_models.dart';
 import 'providers.dart';
 
 const _importances = ['normal', 'important', 'critical'];
+final aiApplyInProgressProvider = StateProvider<bool>((_) => false);
 
 class AiConfirmationScreen extends ConsumerWidget {
   const AiConfirmationScreen({super.key});
@@ -18,30 +20,135 @@ class AiConfirmationScreen extends ConsumerWidget {
     final lang = langOf(context);
     final proposals = ref.watch(proposedEventsProvider);
     final tasks = ref.watch(proposedTasksProvider);
-    final hasAnything = proposals.isNotEmpty || tasks.isNotEmpty;
+    final updates = ref.watch(proposedUpdatesProvider);
+    final deletes = ref.watch(proposedDeletesProvider);
+    final warnings = ref.watch(proposedAmbiguitiesProvider);
+    final isApplying = ref.watch(aiApplyInProgressProvider);
+    final defaultEventAlarm = ref.watch(defaultEventAlarmProvider);
+    final hasAnything = proposals.isNotEmpty ||
+        tasks.isNotEmpty ||
+        updates.isNotEmpty ||
+        deletes.isNotEmpty ||
+        warnings.isNotEmpty;
 
     Future<void> saveSelected() async {
-      final repo = ref.read(eventRepositoryProvider);
-      for (final p in proposals.where((p) => p.selected)) {
-        final noTime = p.timeMissing || p.start == null;
-        await repo.save(
-          title: p.title,
-          start: p.start ?? DateTime.now(),
-          end: p.end ??
-              (p.start ?? DateTime.now()).add(const Duration(hours: 1)),
-          isAllDay: noTime ? true : p.isAllDay,
-          category: p.category,
-          location: p.location,
-          description: p.description,
-          importance: p.importance,
-          reminderOffsets: p.reminders,
-          source: 'ai',
-        );
+      final applyState = ref.read(aiApplyInProgressProvider.notifier);
+      if (applyState.state) return;
+      applyState.state = true;
+      try {
+        final repo = ref.read(eventRepositoryProvider);
+
+        for (var i = 0; i < proposals.length; i++) {
+          final proposal = proposals[i];
+          if (!proposal.selected) continue;
+          final noTime = proposal.timeMissing || proposal.start == null;
+          await repo.save(
+            title: proposal.title,
+            start: proposal.start ?? DateTime.now(),
+            end: proposal.end ??
+                (proposal.start ?? DateTime.now())
+                    .add(const Duration(hours: 1)),
+            isAllDay: noTime ? true : proposal.isAllDay,
+            category: proposal.category,
+            location: proposal.location,
+            description: proposal.description,
+            importance: proposal.importance,
+            reminderOffsets: {
+              ...proposal.reminders,
+              if (defaultEventAlarm) 0,
+            }.toList(),
+            source: 'ai',
+          );
+          ref.read(proposedEventsProvider.notifier).toggle(i);
+        }
+        for (var i = 0; i < tasks.length; i++) {
+          final task = tasks[i];
+          if (!task.selected) continue;
+          await repo.addTask(title: task.title, due: task.dueDate);
+          ref.read(proposedTasksProvider.notifier).toggle(i);
+        }
+
+        for (var i = 0; i < updates.length; i++) {
+          final update = updates[i];
+          if (!update.selected || !update.matched) continue;
+          if (update.kind == 'task') {
+            final title = update.newTitle?.trim();
+            if (title == null || title.isEmpty) continue;
+            await repo.renameTask(update.matchedId!, title);
+            ref.read(proposedUpdatesProvider.notifier).toggle(i);
+            continue;
+          }
+
+          final master = await repo.getEvent(update.matchedId!);
+          if (master == null) continue;
+          final oldStart = DateTime.fromMillisecondsSinceEpoch(master.startDt);
+          final oldEnd = DateTime.fromMillisecondsSinceEpoch(master.endDt);
+          final newStart = update.newStart ?? oldStart;
+          final oldDuration = oldEnd.difference(oldStart);
+          final newEnd = update.newEnd ??
+              (update.newStart == null ? oldEnd : newStart.add(oldDuration));
+          if (!newEnd.isAfter(newStart)) continue;
+
+          final existingReminders = await repo.db.remindersFor(master.id);
+          final savedReminders = update.reminders == null
+              ? existingReminders
+                  .map((reminder) => reminder.offsetMinutes)
+                  .toList()
+              : <int>{
+                  ...update.reminders!,
+                  if (existingReminders.any(
+                    (reminder) => reminder.offsetMinutes == 0,
+                  ))
+                    0,
+                }.toList();
+          await repo.save(
+            id: master.id,
+            title: update.newTitle ?? master.title,
+            start: newStart,
+            end: newEnd,
+            isAllDay: master.isAllDay,
+            category: update.newCategory ?? master.category,
+            location: update.newLocation ?? master.location,
+            description: master.description,
+            importance: update.newImportance ?? master.importance,
+            source: master.source,
+            reminderOffsets: savedReminders,
+            repeatRule: master.repeatRule,
+            repeatUntil: master.repeatUntil == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(master.repeatUntil!),
+          );
+          ref.read(proposedUpdatesProvider.notifier).toggle(i);
+        }
+
+        for (var i = 0; i < deletes.length; i++) {
+          final deletion = deletes[i];
+          if (!deletion.selected || !deletion.matched) continue;
+          if (deletion.kind == 'task') {
+            await repo.removeTask(deletion.matchedId!);
+          } else {
+            await repo.remove(deletion.matchedId!);
+          }
+          ref.read(proposedDeletesProvider.notifier).toggle(i);
+        }
+
+        ref.read(proposedEventsProvider.notifier).set(const []);
+        ref.read(proposedTasksProvider.notifier).set(const []);
+        ref.read(proposedUpdatesProvider.notifier).set(const []);
+        ref.read(proposedDeletesProvider.notifier).set(const []);
+        ref.read(proposedAmbiguitiesProvider.notifier).state = const [];
+        if (context.mounted) context.go('/today');
+      } catch (error, stackTrace) {
+        debugPrint(
+            '[AIConfirm] applying proposals failed: $error\n$stackTrace');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(s.applyFailed)),
+          );
+        }
+      } finally {
+        applyState.state = false;
       }
-      for (final t in tasks.where((t) => t.selected)) {
-        await repo.addTask(title: t.title, due: t.dueDate);
-      }
-      if (context.mounted) context.go('/today');
     }
 
     return Scaffold(
@@ -54,6 +161,33 @@ class AiConfirmationScreen extends ConsumerWidget {
                   child: ListView(
                     padding: const EdgeInsets.all(12),
                     children: [
+                      if (warnings.isNotEmpty)
+                        Card(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .errorContainer
+                              .withValues(alpha: .45),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  s.aiReviewWarnings,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                for (final warning in warnings)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text('• $warning'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       for (var i = 0; i < proposals.length; i++)
                         _EventCard(index: i, lang: lang),
                       if (tasks.isNotEmpty) ...[
@@ -63,14 +197,72 @@ class AiConfirmationScreen extends ConsumerWidget {
                             children: [
                               const Icon(Icons.checklist, size: 18),
                               const SizedBox(width: 8),
-                              Text(s.tasks,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700)),
+                              Text(
+                                s.tasks,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         for (var i = 0; i < tasks.length; i++)
                           _TaskCard(index: i),
+                      ],
+                      if (updates.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+                          child: Text(
+                            s.proposedUpdates,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        for (var i = 0; i < updates.length; i++)
+                          Card(
+                            child: CheckboxListTile(
+                              value: updates[i].selected,
+                              onChanged: updates[i].matched
+                                  ? (_) => ref
+                                      .read(proposedUpdatesProvider.notifier)
+                                      .toggle(i)
+                                  : null,
+                              title: Text(
+                                '${s.edit}: ${updates[i].matchTitle}',
+                              ),
+                              subtitle: Text(
+                                updates[i].matched
+                                    ? _updateSummary(updates[i], s, lang)
+                                    : s.unmatched,
+                              ),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                          ),
+                      ],
+                      if (deletes.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+                          child: Text(
+                            s.proposedDeletes,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        for (var i = 0; i < deletes.length; i++)
+                          Card(
+                            child: CheckboxListTile(
+                              value: deletes[i].selected,
+                              onChanged: deletes[i].matched
+                                  ? (_) => ref
+                                      .read(proposedDeletesProvider.notifier)
+                                      .toggle(i)
+                                  : null,
+                              title: Text(
+                                '${s.delete}: ${deletes[i].matchTitle}',
+                              ),
+                              subtitle:
+                                  deletes[i].matched ? null : Text(s.unmatched),
+                              controlAffinity: ListTileControlAffinity.leading,
+                            ),
+                          ),
                       ],
                     ],
                   ),
@@ -79,10 +271,25 @@ class AiConfirmationScreen extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: FilledButton(
-                      onPressed: saveSelected,
+                      onPressed: isApplying ? null : saveSelected,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Text(s.addSelected),
+                        child: isApplying
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(s.saving),
+                                ],
+                              )
+                            : Text(s.applySelected),
                       ),
                     ),
                   ),
@@ -93,6 +300,22 @@ class AiConfirmationScreen extends ConsumerWidget {
   }
 }
 
+String _updateSummary(ProposedUpdate update, AppStrings s, String lang) {
+  final parts = <String>[
+    if (update.newTitle != null) update.newTitle!,
+    if (update.newStart != null) fmtDateTime(update.newStart!, lang),
+    if (update.newEnd != null) 'End: ${fmtDateTime(update.newEnd!, lang)}',
+    if (update.newCategory != null) s.categoryName(update.newCategory!),
+    if (update.newImportance != null) s.importanceName(update.newImportance!),
+    if (update.newLocation != null) update.newLocation!,
+    if (update.reminders != null)
+      update.reminders!.isEmpty
+          ? s.noReminders
+          : update.reminders!.map(s.reminderBefore).join(', '),
+  ];
+  return parts.isEmpty ? '—' : parts.join(' • ');
+}
+
 class _EventCard extends ConsumerWidget {
   const _EventCard({required this.index, required this.lang});
   final int index;
@@ -101,8 +324,8 @@ class _EventCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = AppStrings.of(context);
-    final p = ref.watch(proposedEventsProvider)[index];
-    final f = DateFormat('EEE d MMM • h:mm a', lang);
+    final proposal = ref.watch(proposedEventsProvider)[index];
+    final format = DateFormat('EEE d MMM • h:mm a', lang);
 
     return Card(
       child: Padding(
@@ -111,36 +334,46 @@ class _EventCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CheckboxListTile(
-              value: p.selected,
+              value: proposal.selected,
               onChanged: (_) =>
                   ref.read(proposedEventsProvider.notifier).toggle(index),
-              title: Text(p.title),
+              title: Text(proposal.title),
               subtitle: Text(
-                  p.start == null ? s.noTimeSpecified : f.format(p.start!)),
-              secondary: p.timeMissing
+                proposal.start == null
+                    ? s.noTimeSpecified
+                    : format.format(proposal.start!),
+              ),
+              secondary: proposal.timeMissing
                   ? IconButton(
                       icon: const Icon(Icons.access_time),
                       tooltip: s.setTime,
                       onPressed: () async {
-                        final d = await showDatePicker(
-                            context: context,
-                            initialDate: p.start ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100));
-                        if (d == null) return;
-                        final t = await showTimePicker(
-                            context: context,
-                            initialTime:
-                                const TimeOfDay(hour: 9, minute: 0));
-                        if (t == null) return;
-                        final st =
-                            DateTime(d.year, d.month, d.day, t.hour, t.minute);
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: proposal.start ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (!context.mounted || date == null) return;
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: const TimeOfDay(hour: 9, minute: 0),
+                        );
+                        if (!context.mounted || time == null) return;
+                        final start = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
                         ref.read(proposedEventsProvider.notifier).replace(
-                            index,
-                            p
-                              ..start = st
-                              ..end = st.add(const Duration(hours: 1))
-                              ..timeMissing = false);
+                              index,
+                              proposal
+                                ..start = start
+                                ..end = start.add(const Duration(hours: 1))
+                                ..timeMissing = false,
+                            );
                       },
                     )
                   : null,
@@ -155,33 +388,40 @@ class _EventCard extends ConsumerWidget {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Chip(label: Text(s.categoryName(p.category))),
-                        if (p.suggested)
+                        Chip(label: Text(s.categoryName(proposal.category))),
+                        if (proposal.suggested)
                           Chip(label: Text(s.aiSuggestedTime)),
-                        if (p.reminders.isEmpty)
-                          Text(s.atStart,
-                              style: const TextStyle(
-                                  fontSize: 11, color: Colors.grey)),
-                        for (final r in p.reminders)
-                          Chip(label: Text(s.reminderBefore(r))),
+                        if (proposal.reminders.isEmpty)
+                          Text(
+                            s.atStart,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        for (final reminder in proposal.reminders)
+                          Chip(label: Text(s.reminderBefore(reminder))),
                       ],
                     ),
                   ),
-                  // تعديل الأهمية قبل الحفظ
                   DropdownButton<String>(
-                    value: p.importance,
+                    value: proposal.importance,
                     isDense: true,
                     items: [
-                      for (final i in _importances)
+                      for (final importance in _importances)
                         DropdownMenuItem(
-                          value: i,
-                          child: Text(s.importanceName(i),
-                              style: const TextStyle(fontSize: 12)),
+                          value: importance,
+                          child: Text(
+                            s.importanceName(importance),
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                     ],
-                    onChanged: (v) => ref
-                        .read(proposedEventsProvider.notifier)
-                        .replace(index, p..importance = v ?? 'normal'),
+                    onChanged: (value) =>
+                        ref.read(proposedEventsProvider.notifier).replace(
+                              index,
+                              proposal..importance = value ?? 'normal',
+                            ),
                   ),
                 ],
               ),
@@ -201,29 +441,31 @@ class _TaskCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = AppStrings.of(context);
     final lang = langOf(context);
-    final t = ref.watch(proposedTasksProvider)[index];
+    final task = ref.watch(proposedTasksProvider)[index];
 
     return Card(
       child: CheckboxListTile(
-        value: t.selected,
+        value: task.selected,
         onChanged: (_) =>
             ref.read(proposedTasksProvider.notifier).toggle(index),
-        title: Text(t.title),
+        title: Text(task.title),
         subtitle: Text(
-            t.dueDate == null ? s.noDate : fmtShortDate(t.dueDate!, lang)),
+          task.dueDate == null ? s.noDate : fmtShortDate(task.dueDate!, lang),
+        ),
         secondary: IconButton(
           icon: const Icon(Icons.calendar_month),
           tooltip: s.setTime,
           onPressed: () async {
-            final d = await showDatePicker(
-                context: context,
-                initialDate: t.dueDate ?? DateTime.now(),
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2100));
-            if (d == null) return;
+            final date = await showDatePicker(
+              context: context,
+              initialDate: task.dueDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (date == null) return;
             ref
                 .read(proposedTasksProvider.notifier)
-                .replace(index, t..dueDate = dayOnly(d));
+                .replace(index, task..dueDate = dayOnly(date));
           },
         ),
       ),

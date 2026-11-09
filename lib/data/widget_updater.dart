@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
@@ -26,9 +28,11 @@ class WidgetUpdater {
       var time = lang == 'ar' ? 'استمتع بوقتك ✨' : 'Enjoy your free time ✨';
 
       final ongoing = timed
-          .where((e) =>
-              e.startDt <= now.millisecondsSinceEpoch &&
-              e.endDt > now.millisecondsSinceEpoch)
+          .where(
+            (e) =>
+                e.startDt <= now.millisecondsSinceEpoch &&
+                e.endDt > now.millisecondsSinceEpoch,
+          )
           .toList();
 
       if (ongoing.isNotEmpty) {
@@ -37,9 +41,8 @@ class WidgetUpdater {
         title = e.title;
         time = '${_hm(e.startDt, lang)} – ${_hm(e.endDt, lang)}';
       } else {
-        final upcoming = timed
-            .where((e) => e.startDt > now.millisecondsSinceEpoch)
-            .toList();
+        final upcoming =
+            timed.where((e) => e.startDt > now.millisecondsSinceEpoch).toList();
         if (upcoming.isNotEmpty) {
           final e = upcoming.first;
           final s = DateTime.fromMillisecondsSinceEpoch(e.startDt);
@@ -49,16 +52,20 @@ class WidgetUpdater {
         }
       }
 
-      final eventsPayload = timed.map((e) => {
-        'id': e.id,
-        'title': e.title,
-        'start': e.startDt,
-        'end': e.endDt,
-        'isAllDay': e.isAllDay,
-        'location': e.location ?? '',
-        'category': e.category,
-        'importance': e.importance,
-      }).toList();
+      final eventsPayload = timed
+          .map(
+            (e) => {
+              'id': e.id,
+              'title': e.title,
+              'start': e.startDt,
+              'end': e.endDt,
+              'isAllDay': e.isAllDay,
+              'location': e.location ?? '',
+              'category': e.category,
+              'importance': e.importance,
+            },
+          )
+          .toList();
 
       final eventsJson = jsonEncode(eventsPayload);
 
@@ -67,14 +74,19 @@ class WidgetUpdater {
       await HomeWidget.saveWidgetData<String>('next_up_badge', badge);
       await HomeWidget.saveWidgetData<String>('next_up_title', title);
       await HomeWidget.saveWidgetData<String>('next_up_time', time);
-      await HomeWidget.updateWidget(
+      await HomeWidget.saveWidgetData<String>(
+        'last_update_ms',
+        '${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final ok = await HomeWidget.updateWidget(
         name: androidWidget,
         androidName: androidWidget,
         qualifiedAndroidName: 'com.example.takka.NextUpWidgetProvider',
         iOSName: 'NextUpWidget',
       );
-    } catch (_) {
-      // مزامنة الودجت أفضل جهد — صامتة عند الفشل
+      debugPrint('[Widget] refresh ok=$ok badge=$badge title=$title');
+    } catch (error, stackTrace) {
+      debugPrint('[Widget] refresh failed: $error\n$stackTrace');
     }
   }
 
@@ -99,7 +111,8 @@ class WidgetUpdater {
   }
 
   /// 12 ساعة — ص/م بالعربية، AM/PM بالإنجليزية.
-  static String _hm(int ms, String lang) =>
-      DateFormat('h:mm a', lang)
-          .format(DateTime.fromMillisecondsSinceEpoch(ms));
+  static String _hm(int ms, String lang) => DateFormat(
+        'h:mm a',
+        lang,
+      ).format(DateTime.fromMillisecondsSinceEpoch(ms));
 }
