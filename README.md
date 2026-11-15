@@ -4,7 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/3BD3LR7MAN/takka?display_name=tag)](https://github.com/3BD3LR7MAN/takka/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Takka** is an Android-first Flutter application for managing a daily schedule through a local-first timeline, tasks, reliable reminders, and optional AI-assisted extraction from text or voice.
+**Takka** is an Android-first Flutter app for planning events and tasks with a daily timeline, recurring schedules, calendar views, scheduled reminders, and optional AI-assisted event proposals from text or voice.
 
 > **The AI proposes. Validation decides. The human approves. One repository save path persists data.**
 
@@ -12,9 +12,11 @@
 
 [Takka v1.0.2](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.2) — Android build `1.0.15+16`
 
-This release contains alarm reliability and update-check improvements, with a new-install-only APK.
+This build adds recurring events, a weekly calendar, per-event alarm choices, local alarm sounds, expanded background alarm support, and GitHub release update checks.
 
-> **Installation warning:** the attached APK is debug-signed and cannot update the previous v1.0.1 APK in place. Installing it over an existing app requires uninstalling first and can erase local schedules and settings. The in-app updater opens the release page instead of treating debug-signed APKs as production updates. The GitHub tag (`v1.0.2`) intentionally differs from the APK's internal version (`1.0.15+16`); see the release notes for details.
+> **Before installing:** this APK is debug-signed with a different certificate from the previous v1.0.1 APK, so Android cannot install it as an update. Trying it requires uninstalling the existing app first, which may erase schedules and settings stored on the device. If you need that data, do not uninstall to try this build; use an APK signed with the original production key for an in-place update.
+
+> **Version labels:** the GitHub release tag is `v1.0.2`, but the APK reports app version `1.0.15+16`. The in-app updater compares these versions, so it may not offer this release to an installation that already reports `1.0.15`. Debug-signed and unsigned APKs are not offered as production updates.
 
 The update dialog shows release notes and opens an attached production APK directly when one is available; otherwise it opens the GitHub release page.
 
@@ -26,6 +28,7 @@ The update dialog shows release notes and opens an attached production APK direc
 
 - Manual event creation and editing with conflict detection
 - Daily timeline, weekly calendar, and monthly calendar views
+- Recurring events: daily, weekly, every two weeks, monthly, weekdays, or weekends, with an optional end date
 - Task checklist management
 - Local-first storage for events, reminders, tasks, and notification records
 - Light, dark, and system themes
@@ -34,8 +37,9 @@ The update dialog shows release notes and opens an attached production APK direc
 ### Reminders and alarms
 
 - Scheduled Android reminders with exact-alarm support and fallback behavior
-- Native Android alarm scheduler and foreground audio service with Stop/Snooze controls
+- Background alarm audio with Stop and Snooze controls, subject to Android permission and battery limits
 - Custom reminder ringtones with live preview
+- Choose an alarm sound file from the device, set a default in Settings, and override it per event
 - Persistent Alarm Mode for critical events
 - Configurable 5-, 10-, and 15-minute snooze durations
 - Reboot and timezone recovery for scheduled notifications
@@ -124,7 +128,7 @@ For the most reliable reminder delivery:
 4. Enable OEM autostart if your device provides that setting.
 5. Use the scheduled test notification before relying on an important reminder.
 
-Android manufacturer policies may still delay or suppress alarms when background activity is restricted.
+Android or manufacturer background restrictions may delay or suppress alarms. Exact timing may require the **Alarms & reminders** permission. Alarms are not delivered after an explicit force-stop until Takka is opened again.
 
 ## Documentation
 
@@ -137,8 +141,10 @@ Android manufacturer policies may still delay or suppress alarms when background
 - [Security guidance](docs/SECURITY.md)
 - [Build guide](docs/BUILD.md)
 - [Release guide](docs/RELEASE.md)
+- [v1.0.2 release notes](docs/RELEASE_NOTES_v1.0.2.md)
 - [v1.0.14 release notes](docs/RELEASE_NOTES_v1.0.14.md)
 - [v1.0.1 release notes](docs/RELEASE_NOTES_v1.0.1.md)
+- [v1.0.0 release notes](docs/RELEASE_NOTES_v1.0.0.md)
 
 ## Privacy and security
 
@@ -152,7 +158,6 @@ Never commit API keys, signing passwords, `key.properties`, `.jks` files, `.keys
 
 The current release does not include:
 
-- Recurring events
 - Cloud synchronization
 - Backend-based API key protection
 - Conversational tool calling
@@ -165,7 +170,7 @@ The current release does not include:
 | Application | Takka |
 | Dart package | `takka` |
 | Android application ID | `com.example.takka` |
-| Current version | `1.0.14+15` |
+| Current version | `1.0.15+16` |
 | Minimum Android API | 23 |
 | Compile SDK | API 36 |
 | License | MIT |
