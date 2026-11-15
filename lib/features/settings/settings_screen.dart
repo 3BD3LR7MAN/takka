@@ -32,7 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   final _keyCtrl = TextEditingController();
   bool _saving = false;
   bool _checkingUpdates = false;
-  String _installedVersion = '1.0.15';
+  String _installedVersion = '1.0.2';
   bool _exactAlarms = true;
   bool _notificationsEnabled = false;
   bool _batteryExempt = false;

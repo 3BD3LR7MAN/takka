@@ -1,9 +1,10 @@
-# Takka v1.0.2 — new-install-only test APK
+# Takka v1.0.2 — Android test APK
 
 - **GitHub release tag:** `v1.0.2`
-- **Android app version:** `1.0.15+16` (`versionName` 1.0.15, `versionCode` 16)
-- **APK:** `takka-v1.0.2-app-1.0.15+16-debug-signed.apk`
-- **SHA-256:** `085a2776f9aa69b07823a37166fb888e6718fb223ea40929a4d75a973e56a6b1`
+- **Android app version:** `1.0.2` (`versionName` 1.0.2)
+- **Android build code:** `17` (`versionCode`; Android requires this to be an integer)
+- **APK:** `takka-v1.0.2-app-1.0.2-debug-signed.apk`
+- **Checksum:** provided in the accompanying `.sha256` asset
 
 ## What’s new
 
@@ -18,9 +19,9 @@ The v1.0.1 sound-effect themes, ringtone presets, Alarm Mode, and live Next Up w
 
 ## Please read before installing
 
-This APK is **debug-signed for testing**. Its signing certificate is different from the certificate on the public v1.0.1 APK, so Android cannot install it as an update over that app. Trying this build requires uninstalling the existing Takka app first. Uninstalling can erase schedules and settings stored on the device. **If that data matters, do not uninstall the current app to try this APK.** An in-place update requires an APK signed with the same production key as the installed app.
+This APK is **debug-signed for testing**. Android can install it over an existing Takka app only if its signing certificate matches the installed app. If Android requires you to uninstall the existing app, that may erase schedules and settings stored on the device. **If that data matters, do not uninstall the current app to try this APK.** A data-preserving update requires an APK signed with the same production key as the installed app.
 
-The GitHub tag is `v1.0.2`, but the Android app reports version `1.0.15+16`. Takka’s in-app updater compares these versions, so it may not offer this release to an installation that already reports `1.0.15`. Debug-signed and unsigned APKs are not offered as production updates; the updater directs users to the release page instead.
+The GitHub release tag and Android app version both use `1.0.2`. Android's separate integer build code is `17`, so it remains greater than the previous build code `16`.
 
 ## Alarm delivery
 
@@ -28,4 +29,4 @@ Allow Takka to send notifications. On Android 12 and later, exact timing may req
 
 ## Validation
 
-GitHub Actions passed dependency resolution, Drift code generation, static analysis, Flutter tests, and the Android release build for the source used in this release: [build run](https://github.com/3BD3LR7MAN/takka/actions/runs/43743899556). Physical-device testing is still needed for alarm timing, reboot recovery, permission denial, manufacturer battery restrictions, local sound playback, and overlapping alarms.
+GitHub Actions must pass dependency resolution, Drift code generation, static analysis, Flutter tests, and the Android release build for this version. Physical-device testing is still needed for alarm timing, reboot recovery, permission denial, manufacturer battery restrictions, local sound playback, and overlapping alarms.
