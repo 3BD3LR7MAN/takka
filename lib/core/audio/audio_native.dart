@@ -128,6 +128,19 @@ class NativeAudioBridge implements AudioPlatformBridge {
       : Future<void>.value();
 
   @override
+  Future<void> cancelBackgroundAlarmsForEvent(String eventId) => _isAndroid
+      ? _invoke('cancelBackgroundAlarmsForEvent', {'eventId': eventId})
+      : Future<void>.value();
+
+  @override
+  Future<Map<String, Object?>?> getActiveBackgroundAlarm() async {
+    if (!_isAndroid) return null;
+    return _audioChannel.invokeMapMethod<String, Object?>(
+      'getActiveBackgroundAlarm',
+    );
+  }
+
+  @override
   Future<Map<String, String>?> pickAlarmSound() async {
     if (!_isAndroid) return null;
     try {

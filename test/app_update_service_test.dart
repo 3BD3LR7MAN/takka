@@ -9,6 +9,17 @@ void main() {
       expect(AppUpdateService.normalizeVersion('not-a-version'), isNull);
     });
 
+    test('rejects invalid SemVer prerelease and build identifiers', () {
+      expect(AppUpdateService.normalizeVersion('1.2.3-alpha..1'), isNull);
+      expect(AppUpdateService.normalizeVersion('1.2.3-alpha.'), isNull);
+      expect(AppUpdateService.normalizeVersion('1.2.3-alpha.01'), isNull);
+      expect(AppUpdateService.normalizeVersion('1.2.3+build..1'), isNull);
+      expect(
+          AppUpdateService.normalizeVersion('1.2.3-alpha.0'), '1.2.3-alpha.0');
+      expect(AppUpdateService.normalizeVersion('1.2.3+build.01'),
+          '1.2.3+build.01');
+    });
+
     test('compares major, minor, and patch numbers numerically', () {
       expect(
           AppUpdateService.compareVersions('1.10.0', '1.9.9'), greaterThan(0));
@@ -40,6 +51,41 @@ void main() {
       expect(
         AppUpdateService.compareVersions('1.2.3-alpha.10', '1.2.3-alpha.2'),
         greaterThan(0),
+      );
+    });
+
+    test('the currently published v1.0.0 release is older than this app', () {
+      expect(AppUpdateService.compareVersions('v1.0.0', '1.0.15'), lessThan(0));
+    });
+
+    test('release links must be HTTPS URLs on trusted GitHub hosts', () {
+      expect(
+        AppUpdateService.trustedReleaseUri(
+          'https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.0',
+          page: true,
+        ),
+        isNotNull,
+      );
+      expect(
+        AppUpdateService.trustedReleaseUri(
+          'https://release-assets.githubusercontent.com/file.apk',
+          page: false,
+        ),
+        isNotNull,
+      );
+      expect(
+        AppUpdateService.trustedReleaseUri(
+          'http://github.com/3BD3LR7MAN/takka',
+          page: true,
+        ),
+        isNull,
+      );
+      expect(
+        AppUpdateService.trustedReleaseUri(
+          'https://github.com.example.net/releases/latest',
+          page: true,
+        ),
+        isNull,
       );
     });
   });

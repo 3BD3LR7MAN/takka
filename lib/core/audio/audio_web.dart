@@ -85,6 +85,12 @@ class WebAudioBridge implements AudioPlatformBridge {
   Future<void> cancelBackgroundAlarm(int alarmId) async {}
 
   @override
+  Future<void> cancelBackgroundAlarmsForEvent(String eventId) async {}
+
+  @override
+  Future<Map<String, Object?>?> getActiveBackgroundAlarm() async => null;
+
+  @override
   Future<Map<String, String>?> pickAlarmSound() async => null;
 
   @override

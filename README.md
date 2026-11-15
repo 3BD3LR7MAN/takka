@@ -10,11 +10,13 @@
 
 ## Latest release
 
-[Takka v1.0.14](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.14) — build `1.0.14+15`
+[Takka v1.0.2](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.2) — Android build `1.0.15+16`
 
-This release adds GitHub Releases update checks, a weekly calendar view, and the native Android alarm reliability work introduced in the v1.0.13 line. Takka can now check for stable updates automatically at startup, no more than once every 24 hours, or on demand from Settings.
+This release contains alarm reliability and update-check improvements, with a new-install-only APK.
 
-The update dialog shows release notes and opens an attached APK directly when one is available; otherwise it opens the GitHub release page.
+> **Installation warning:** the attached APK is debug-signed and cannot update the previous v1.0.1 APK in place. Installing it over an existing app requires uninstalling first and can erase local schedules and settings. The in-app updater opens the release page instead of treating debug-signed APKs as production updates. The GitHub tag (`v1.0.2`) intentionally differs from the APK's internal version (`1.0.15+16`); see the release notes for details.
+
+The update dialog shows release notes and opens an attached production APK directly when one is available; otherwise it opens the GitHub release page.
 
 > **Repository requirement:** update checks use the unauthenticated public GitHub Releases API for `3BD3LR7MAN/takka`. The repository must remain publicly accessible for end-user update checks to work. Never embed a GitHub personal access token in the Android application.
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -27,16 +28,47 @@ class AppUpdateService {
   static const owner = '3BD3LR7MAN';
   static const repository = 'takka';
   static const _lastAutoCheckKey = 'last_github_update_check_at';
-  static const _lastPromptedTagKey = 'last_github_update_prompted_tag';
   static const _storage = FlutterSecureStorage();
   static const _checkInterval = Duration(hours: 24);
 
   final http.Client _client = http.Client();
+  Future<GitHubRelease>? _inFlightRequest;
 
-  Future<GitHubRelease> fetchLatestRelease() async {
+  static bool get isSupported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static Uri? trustedReleaseUri(String value, {required bool page}) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https' || uri.userInfo.isNotEmpty) {
+      return null;
+    }
+    final allowedHosts = page
+        ? const {'github.com'}
+        : const {
+            'github.com',
+            'objects.githubusercontent.com',
+            'release-assets.githubusercontent.com',
+          };
+    if (!allowedHosts.contains(uri.host.toLowerCase())) return null;
+    return uri;
+  }
+
+  Future<GitHubRelease> fetchLatestRelease() {
+    final current = _inFlightRequest;
+    if (current != null) return current;
+    late final Future<GitHubRelease> request;
+    request = _fetchLatestRelease().whenComplete(() {
+      if (identical(_inFlightRequest, request)) _inFlightRequest = null;
+    });
+    _inFlightRequest = request;
+    return request;
+  }
+
+  Future<GitHubRelease> _fetchLatestRelease() async {
     final uri = Uri.https(
       'api.github.com',
-      '/repos/$owner/$repository/releases/latest',
+      '/repos/$owner/$repository/releases',
+      {'per_page': '30'},
     );
     final response = await _client.get(
       uri,
@@ -51,34 +83,63 @@ class AppUpdateService {
     }
 
     final decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Invalid release response');
+    if (decoded is! List) {
+      throw const FormatException('Invalid releases response');
     }
-    final tagName = decoded['tag_name'];
-    final releasePageUrl = decoded['html_url'];
-    if (tagName is! String || releasePageUrl is! String) {
-      throw const FormatException(
-          'Release response is missing required fields');
+    GitHubRelease? latest;
+    for (final item in decoded) {
+      if (item is! Map<String, dynamic> ||
+          item['draft'] == true ||
+          item['prerelease'] == true) {
+        continue;
+      }
+      final candidate = _releaseFromJson(item);
+      if (candidate != null &&
+          (latest == null ||
+              compareVersions(candidate.version, latest.version) > 0)) {
+        latest = candidate;
+      }
     }
-    final version = normalizeVersion(tagName);
-    if (version == null) {
-      throw const FormatException(
-          'The latest release has an invalid version tag');
+    if (latest == null) {
+      throw const FormatException('No valid public stable release was found');
     }
+    return latest;
+  }
 
-    var downloadUrl = releasePageUrl;
+  GitHubRelease? _releaseFromJson(Map<String, dynamic> decoded) {
+    final tagName = decoded['tag_name'];
+    final rawPageUrl = decoded['html_url'];
+    if (tagName is! String || rawPageUrl is! String) return null;
+    final version = normalizeVersion(tagName);
+    final pageUri = trustedReleaseUri(rawPageUrl, page: true);
+    if (version == null || pageUri == null) return null;
+
+    var downloadUrl = pageUri.toString();
     final assets = decoded['assets'];
     if (assets is List) {
+      final candidates = <({String name, String url})>[];
       for (final asset in assets) {
-        if (asset is Map<String, dynamic>) {
-          final name = asset['name'];
-          final url = asset['browser_download_url'];
-          if (name is String &&
-              url is String &&
-              name.toLowerCase().endsWith('.apk')) {
-            downloadUrl = url;
-            break;
-          }
+        if (asset is! Map<String, dynamic>) continue;
+        final name = asset['name'];
+        final rawUrl = asset['browser_download_url'];
+        if (name is! String || rawUrl is! String) continue;
+        final lowerName = name.toLowerCase();
+        if (!lowerName.endsWith('.apk') ||
+            lowerName.contains('debug-signed') ||
+            lowerName.contains('unsigned')) {
+          continue;
+        }
+        final assetUri = trustedReleaseUri(rawUrl, page: false);
+        if (assetUri != null) {
+          candidates.add((name: name, url: assetUri.toString()));
+        }
+      }
+      if (candidates.isNotEmpty) {
+        candidates.sort(
+          (a, b) => _assetRank(a.name).compareTo(_assetRank(b.name)),
+        );
+        if (_assetRank(candidates.first.name) < 3) {
+          downloadUrl = candidates.first.url;
         }
       }
     }
@@ -88,54 +149,97 @@ class AppUpdateService {
       tagName: tagName,
       version: version,
       releaseNotes: body is String ? body.trim() : '',
-      releasePageUrl: releasePageUrl,
+      releasePageUrl: pageUri.toString(),
       downloadUrl: downloadUrl,
     );
+  }
+
+  static int _assetRank(String name) {
+    final lower = name.toLowerCase();
+    if (lower == 'app-release.apk' || lower == 'takka.apk') return 0;
+    if (lower.contains('universal') || lower.contains('all')) return 1;
+    if (!RegExp(r'(arm64|armeabi|x86|x86_64|universal)', caseSensitive: false)
+        .hasMatch(lower)) {
+      return 2;
+    }
+    return 3;
   }
 
   Future<String> currentVersion() async =>
       (await PackageInfo.fromPlatform()).version;
 
-  Future<bool> hasUpdate(String current, String latest) async =>
-      compareVersions(latest, current) > 0;
-
-  /// Returns a release only if an automatic check is due and a newer version
-  /// exists. Failed/offline requests do not advance the daily check timestamp.
+  /// Returns a release only when a daily check is due and a newer version
+  /// exists. A newer version is not marked as checked until its dialog is shown.
   Future<GitHubRelease?> checkAutomatically() async {
+    if (!isSupported) return null;
     final lastCheck = await _storage.read(key: _lastAutoCheckKey);
     final lastTime = lastCheck == null ? null : DateTime.tryParse(lastCheck);
+    final now = DateTime.now();
     if (lastTime != null &&
-        DateTime.now().difference(lastTime) < _checkInterval &&
-        !DateTime.now().isBefore(lastTime)) {
+        now.difference(lastTime) < _checkInterval &&
+        !now.isBefore(lastTime)) {
       return null;
     }
 
     final release = await fetchLatestRelease();
-    await _storage.write(
-      key: _lastAutoCheckKey,
-      value: DateTime.now().toIso8601String(),
-    );
     final current = await currentVersion();
-    if (compareVersions(release.version, current) <= 0) return null;
-
-    final prompted = await _storage.read(key: _lastPromptedTagKey);
-    if (prompted == release.tagName) return null;
-    return release;
+    if (compareVersions(release.version, current) > 0) return release;
+    await recordAutomaticCheckCompleted();
+    return null;
   }
 
-  Future<void> markAutomaticallyPrompted(String tagName) =>
-      _storage.write(key: _lastPromptedTagKey, value: tagName);
+  Future<void> recordAutomaticCheckCompleted() => _storage.write(
+        key: _lastAutoCheckKey,
+        value: DateTime.now().toIso8601String(),
+      );
 
   static String? normalizeVersion(String input) {
     var version = input.trim();
     if (version.startsWith('v') || version.startsWith('V')) {
       version = version.substring(1);
     }
-    if (version.startsWith('= ')) version = version.substring(2).trim();
-    final match = RegExp(
-      r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$',
-    ).firstMatch(version);
-    return match == null ? null : version;
+
+    final plusIndex = version.indexOf('+');
+    if (plusIndex != version.lastIndexOf('+')) return null;
+    final beforeBuild =
+        plusIndex < 0 ? version : version.substring(0, plusIndex);
+    final build = plusIndex < 0 ? null : version.substring(plusIndex + 1);
+    if (build != null && !_validIdentifiers(build, allowLeadingZero: true)) {
+      return null;
+    }
+
+    final dashIndex = beforeBuild.indexOf('-');
+    final core =
+        dashIndex < 0 ? beforeBuild : beforeBuild.substring(0, dashIndex);
+    final prerelease =
+        dashIndex < 0 ? null : beforeBuild.substring(dashIndex + 1);
+    if (!RegExp(r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$').hasMatch(core)) {
+      return null;
+    }
+    if (prerelease != null &&
+        !_validIdentifiers(prerelease, allowLeadingZero: false)) {
+      return null;
+    }
+    return version;
+  }
+
+  static bool _validIdentifiers(
+    String value, {
+    required bool allowLeadingZero,
+  }) {
+    final identifiers = value.split('.');
+    if (identifiers.any((part) => part.isEmpty)) return false;
+    for (final part in identifiers) {
+      if (!RegExp(r'^[0-9A-Za-z-]+$').hasMatch(part)) return false;
+      final numeric = RegExp(r'^\d+$').hasMatch(part);
+      if (!allowLeadingZero &&
+          numeric &&
+          part.length > 1 &&
+          part.startsWith('0')) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Compares semantic versions; returns positive when [a] is newer.

@@ -181,6 +181,45 @@ class SoundService {
   Future<void> cancelBackgroundAlarm(int alarmId) =>
       audioBridge.cancelBackgroundAlarm(alarmId);
 
+  Future<void> cancelBackgroundAlarmsForEvent(String eventId) =>
+      audioBridge.cancelBackgroundAlarmsForEvent(eventId);
+
+  Future<void> reconcileNativeAlarmState() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    Map<String, Object?>? nativeAlarm;
+    try {
+      nativeAlarm = await audioBridge.getActiveBackgroundAlarm();
+    } catch (error, stackTrace) {
+      debugPrint(
+          '[Audio] active alarm reconciliation failed: $error\n$stackTrace');
+      return;
+    }
+    final current = activeAlarm.value;
+    if (nativeAlarm == null) {
+      if (current != null) {
+        _snoozeTimer?.cancel();
+        _snoozeTimer = null;
+        activeAlarm.value = null;
+      }
+      return;
+    }
+    final eventId = nativeAlarm['event_id'];
+    final title = nativeAlarm['event_title'];
+    final fireAt = nativeAlarm['fire_at_millis'];
+    if (eventId is! String || title is! String || fireAt is! num) return;
+    if (current?.eventId == eventId &&
+        current?.time.millisecondsSinceEpoch == fireAt.toInt()) {
+      return;
+    }
+    activeAlarm.value = AlarmState(
+      eventId: eventId,
+      title: title,
+      location: nativeAlarm['event_location'] as String?,
+      time: DateTime.fromMillisecondsSinceEpoch(fireAt.toInt()),
+      importance: nativeAlarm['event_importance'] as String? ?? 'normal',
+    );
+  }
+
   void playEffect(String effect) {
     if (!soundEffectsEnabled || soundTheme == 'muted') return;
     audioBridge.playEffect(effect, soundTheme);
@@ -242,7 +281,7 @@ class SoundService {
     activeAlarm.value = null;
   }
 
-  void snoozeAlarm({int? minutes}) {
+  void snoozeAlarm({int? minutes, bool backgroundScheduled = false}) {
     final alarm = activeAlarm.value;
     if (alarm == null) return;
     audioBridge.stopAlarm();
@@ -250,12 +289,15 @@ class SoundService {
     playEffect('click');
     _snoozeTimer?.cancel();
     final delay = minutes ?? snoozeDurationMinutes;
-    _snoozeTimer = Timer(Duration(minutes: delay > 0 ? delay : 1), () {
+    final duration = Duration(minutes: delay > 0 ? delay : 1);
+    if (backgroundScheduled) return;
+    final nextFire = DateTime.now().add(duration);
+    _snoozeTimer = Timer(duration, () {
       triggerAlarm(
         eventId: alarm.eventId,
         title: alarm.title,
         location: alarm.location,
-        time: alarm.time,
+        time: nextFire,
         importance: alarm.importance,
       );
     });

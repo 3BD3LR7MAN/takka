@@ -13,7 +13,7 @@ The Gradle script reads `android/key.properties` only when it exists. Without it
 
 ## GitHub Actions signed builds
 
-The workflow at `.github/workflows/android-release.yml` runs manually or when a `v*` tag is pushed. Add these four **Actions repository secrets** under **Settings → Secrets and variables → Actions**:
+The workflow at `.github/workflows/android-release.yml` is manually dispatched and uses Flutter `3.47.7`. Add these four **Actions repository secrets** under **Settings → Secrets and variables → Actions**. Tag pushes do not run it; the current new-install-only debug release therefore does not trigger a guaranteed signing failure when signing secrets are absent:
 
 | Secret | Value |
 |---|---|
