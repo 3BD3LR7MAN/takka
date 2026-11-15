@@ -91,6 +91,45 @@ internal object AlarmScheduler {
         )
     }
 
+    fun cancelForEvent(context: Context, eventId: String) {
+        val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        val scheduled = readAlarms(context)
+        scheduled
+            .filter { it.optString(EXTRA_EVENT_ID) == eventId }
+            .forEach { manager?.cancel(pendingIntent(context, it.optInt(EXTRA_ID))) }
+        writeAlarms(
+            context,
+            scheduled.filterNot { it.optString(EXTRA_EVENT_ID) == eventId },
+        )
+        val active = preferences(context).getString(KEY_ACTIVE_ALARM, null)
+        if (active != null) {
+            try {
+                if (JSONObject(active).optString(EXTRA_EVENT_ID) == eventId) {
+                    AlarmRingingService.stop(context)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun activeAlarm(context: Context): Map<String, Any?>? {
+        val raw = preferences(context).getString(KEY_ACTIVE_ALARM, null) ?: return null
+        return try {
+            val json = JSONObject(raw)
+            val eventId = json.optString(EXTRA_EVENT_ID).takeIf { it.isNotBlank() }
+                ?: return null
+            mapOf(
+                EXTRA_ID to json.optInt(EXTRA_ID, -1),
+                EXTRA_EVENT_ID to eventId,
+                EXTRA_TITLE to json.optString(EXTRA_TITLE, "Takka alarm"),
+                EXTRA_LOCATION to json.optString(EXTRA_LOCATION).takeIf { it.isNotBlank() },
+                EXTRA_IMPORTANCE to json.optString(EXTRA_IMPORTANCE, "normal"),
+                EXTRA_FIRE_AT to json.optLong(EXTRA_FIRE_AT),
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun cancelAll(context: Context) {
         val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         readAlarms(context).forEach { data ->

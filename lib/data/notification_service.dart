@@ -33,7 +33,8 @@ class NotificationService {
     'important': ('takka_reminders_important_v2', 'Important reminders'),
     'critical': ('takka_reminders_critical_v2', 'Critical reminders'),
   };
-  static const _alarmChannelId = 'takka_event_alarm_v1';
+  static const _alarmSilentChannelId = 'takka_event_alarm_silent_v2';
+  static const _alarmAudibleChannelId = 'takka_event_alarm_sound_v2';
   static const _activeAlarmChannelId = 'takka_active_alarm_v1';
   static const _activeAlarmNotificationId = 2147002;
 
@@ -178,11 +179,22 @@ class NotificationService {
       }
       for (final channel in [
         AndroidNotificationChannel(
-          _alarmChannelId,
+          _alarmSilentChannelId,
+          _tr('Event alarm controls', 'عناصر التحكم في منبه الحدث'),
+          description: _tr(
+            'Silent event notifications while the alarm service plays audio',
+            'إشعارات أحداث صامتة أثناء تشغيل صوت المنبه',
+          ),
+          importance: Importance.max,
+          playSound: false,
+          enableVibration: false,
+        ),
+        AndroidNotificationChannel(
+          _alarmAudibleChannelId,
           _tr('Event alarms', 'منبهات الأحداث'),
           description: _tr(
-            'Alerts at the start of scheduled events',
-            'تنبيهات عند بداية الأحداث المجدولة',
+            'Alerts at the start of scheduled events when alarm mode is off',
+            'تنبيهات عند بداية الأحداث عند إيقاف وضع المنبه',
           ),
           importance: Importance.max,
           playSound: true,
@@ -269,7 +281,7 @@ class NotificationService {
     }
   }
 
-  Future<void> scheduleSnoozeAlarm({
+  Future<bool> scheduleSnoozeAlarm({
     required String eventId,
     required String title,
     required String? location,
@@ -280,7 +292,7 @@ class NotificationService {
       debugPrint(
         '[Notif] snooze alarm skipped: notification service not ready',
       );
-      return;
+      return false;
     }
     final fire = DateTime.now().add(Duration(minutes: minutes));
     final notifId =
@@ -296,6 +308,7 @@ class NotificationService {
       payload: '$eventId|alarm',
       isAlarm: true,
     );
+    return true;
   }
 
   /// جدولة كل تذكيرات الحدث — offset 0 = عند البدء تمامًا.
@@ -389,11 +402,38 @@ class NotificationService {
   Future<void> cancelForEvent(String eventId, EventRepository repo) async {
     final android = plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    if (android == null) return;
     final rows = await repo.db.scheduledForEvent(eventId);
-    for (final row in rows) {
-      await android.cancel(row.androidNotifId);
-      await SoundService.instance.cancelBackgroundAlarm(row.androidNotifId);
+    if (kIsWeb || android == null) {
+      await SoundService.instance.cancelBackgroundAlarmsForEvent(eventId);
+      await repo.db.deleteScheduledForEvent(eventId);
+      return;
+    }
+    List<PendingNotificationRequest> pending;
+    try {
+      pending = await plugin.pendingNotificationRequests();
+    } catch (error) {
+      debugPrint(
+          '[Notif] pending request lookup failed during event cancel: $error');
+      pending = const [];
+    }
+    final ids = <int>{
+      for (final row in rows) row.androidNotifId,
+      for (final request in pending)
+        if ((request.payload ?? '').split('|').first == eventId) request.id,
+    };
+    for (final id in ids) {
+      try {
+        await android.cancel(id);
+      } catch (error) {
+        debugPrint(
+            '[Notif] scheduled notification cancel failed id=$id: $error');
+      }
+      await SoundService.instance.cancelBackgroundAlarm(id);
+    }
+    await SoundService.instance.cancelBackgroundAlarmsForEvent(eventId);
+    if (SoundService.instance.activeAlarm.value?.eventId == eventId) {
+      SoundService.instance.dismissAlarm();
+      await cancelActiveAlarmNotification();
     }
     await repo.db.deleteScheduledForEvent(eventId);
   }
@@ -610,11 +650,14 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
+    final alarmModeEnabled = SoundService.instance.alarmModeEnabled;
     final channelId = isAlarm
-        ? _alarmChannelId
+        ? (alarmModeEnabled ? _alarmSilentChannelId : _alarmAudibleChannelId)
         : (channels[importance]?.$1 ?? 'reminders_normal');
     final channelName = isAlarm
-        ? _tr('Event alarms', 'منبهات الأحداث')
+        ? alarmModeEnabled
+            ? _tr('Event alarm controls', 'عناصر التحكم في منبه الحدث')
+            : _tr('Event alarms', 'منبهات الأحداث')
         : (channels[importance]?.$2 ?? 'Reminders');
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -625,8 +668,8 @@ class NotificationService {
             : Importance.high,
         priority: isAlarm ? Priority.max : Priority.high,
         icon: 'ic_notification',
-        playSound: true,
-        enableVibration: true,
+        playSound: !isAlarm || !alarmModeEnabled,
+        enableVibration: !isAlarm || !alarmModeEnabled,
         vibrationPattern:
             vibrationPatterns[importance] ?? vibrationPatterns['normal'],
         category: isAlarm

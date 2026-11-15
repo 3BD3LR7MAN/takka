@@ -32,6 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   final _keyCtrl = TextEditingController();
   bool _saving = false;
   bool _checkingUpdates = false;
+  String _installedVersion = '1.0.15';
   bool _exactAlarms = true;
   bool _notificationsEnabled = false;
   bool _batteryExempt = false;
@@ -45,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadAi();
     _loadDiag();
+    _loadInstalledVersion();
   }
 
   @override
@@ -71,6 +73,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _baseCtrl.text = effective.baseUrl;
       _keyCtrl.text = effective.apiKey;
     });
+  }
+
+  Future<void> _loadInstalledVersion() async {
+    try {
+      final version = await AppUpdateService.instance.currentVersion();
+      if (mounted) setState(() => _installedVersion = version);
+    } catch (error) {
+      debugPrint('[Settings] app version lookup failed: $error');
+    }
   }
 
   Future<void> _loadDiag() async {
@@ -247,7 +258,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Future<void> _checkForUpdates() async {
-    if (_checkingUpdates) return;
+    if (_checkingUpdates || !AppUpdateService.isSupported) return;
     setState(() => _checkingUpdates = true);
     try {
       final service = AppUpdateService.instance;
@@ -255,13 +266,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final current = await service.currentVersion();
       if (!mounted) return;
       if (AppUpdateService.compareVersions(release.version, current) > 0) {
-        await showUpdateAvailableDialog(context, release);
+        final shown = await showUpdateAvailableDialog(context, release);
+        if (shown) await service.recordAutomaticCheckCompleted();
       } else {
         _toast(AppStrings.of(context).upToDate);
       }
     } catch (error, stackTrace) {
       debugPrint('[Update] manual release check failed: $error\n$stackTrace');
-      if (mounted) _toast(AppStrings.of(context).updateCheckFailed);
+      if (!mounted) return;
+      final strings = AppStrings.of(context);
+      final message = error is GitHubReleaseException && error.statusCode == 404
+          ? strings.updateNoRelease
+          : error is GitHubReleaseException && error.statusCode == 403
+              ? strings.updateRateLimited
+              : strings.updateCheckFailed;
+      _toast(message);
     } finally {
       if (mounted) setState(() => _checkingUpdates = false);
     }
@@ -455,11 +474,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             value: SoundService.instance.alarmModeEnabled,
             onChanged: (v) async {
               await SoundService.instance.setAlarmModeEnabled(v);
-              if (v) {
-                await NotificationService.instance.rescheduleAll(
-                  ref.read(eventRepositoryProvider),
-                );
-              }
+              await NotificationService.instance.rescheduleAll(
+                ref.read(eventRepositoryProvider),
+              );
               if (!mounted) return;
               setState(() {});
             },
@@ -703,24 +720,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const Divider(),
           ListTile(
             leading: const TakkaMascot(mood: TakkaMood.idle, size: 52),
-            title: Text('${s.appName} v1.0.14'),
+            title: Text('${s.appName} v$_installedVersion'),
             subtitle: Text('${s.appSubtitle}\n${s.takkaName}: ${s.takkaIdle}'),
           ),
-          ListTile(
-            leading: const Icon(Icons.system_update_alt_rounded),
-            title: Text(s.checkForUpdates),
-            subtitle: Text(
-              _checkingUpdates ? s.checkingForUpdates : 'v1.0.14',
+          if (AppUpdateService.isSupported)
+            ListTile(
+              leading: const Icon(Icons.system_update_alt_rounded),
+              title: Text(s.checkForUpdates),
+              subtitle: Text(
+                _checkingUpdates ? s.checkingForUpdates : 'v$_installedVersion',
+              ),
+              trailing: _checkingUpdates
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right_rounded),
+              onTap: _checkingUpdates ? null : _checkForUpdates,
             ),
-            trailing: _checkingUpdates
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.chevron_right_rounded),
-            onTap: _checkingUpdates ? null : _checkForUpdates,
-          ),
           _sectionHeading(s.developer),
           ListTile(
             leading: Icon(

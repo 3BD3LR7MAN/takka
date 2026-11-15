@@ -85,8 +85,9 @@ Future<void> main() async {
 }
 
 Future<void> _initializeAfterFirstFrame(EventRepository repo) async {
-  // Optional audio/storage setup must never gate notification startup.
-  unawaited(_initializeSoundService());
+  // The first frame is already visible. Load settings before scheduling so
+  // alarm channels, snooze actions, and native schedules use saved values.
+  await _initializeSoundService();
 
   // Keep the widget useful even if notification setup fails on this device.
   unawaited(WidgetUpdater.refresh(repo));
@@ -125,7 +126,12 @@ Future<void> _initializeAfterFirstFrame(EventRepository repo) async {
   }
 }
 
-Future<void> _initializeSoundService() async {
+Future<void>? _soundServiceInitialization;
+
+Future<void> _initializeSoundService() =>
+    _soundServiceInitialization ??= _initializeSoundServiceOnce();
+
+Future<void> _initializeSoundServiceOnce() async {
   try {
     await SoundService.instance.init();
   } catch (error, stackTrace) {
@@ -139,9 +145,11 @@ Future<void> _snoozeAlarmFromNotification(
 ) async {
   final event = await repo.getEvent(eventId);
   if (event == null) return;
+  await SoundService.instance.reconcileNativeAlarmState();
   final minutes = SoundService.instance.snoozeDurationMinutes;
+  var scheduled = false;
   try {
-    await NotificationService.instance.scheduleSnoozeAlarm(
+    scheduled = await NotificationService.instance.scheduleSnoozeAlarm(
       eventId: event.id,
       title: event.title,
       location: event.location,
@@ -154,19 +162,13 @@ Future<void> _snoozeAlarmFromNotification(
     );
   }
   if (SoundService.instance.activeAlarm.value?.eventId == event.id) {
-    SoundService.instance.snoozeAlarm(minutes: minutes);
+    SoundService.instance.snoozeAlarm(
+      minutes: minutes,
+      backgroundScheduled: scheduled,
+    );
   } else {
     await NotificationService.instance.cancelActiveAlarmNotification();
   }
-}
-
-/// مدخل headless — يستدعيه BootReceiver بعد إعادة تشغيل الجهاز (مواصفة G).
-@pragma('vm:entry-point')
-Future<void> rescheduleNotifications() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final db = AppDatabase();
-  await NotificationService.instance.init();
-  await NotificationService.instance.reschedulePending(db);
 }
 
 class TakkaApp extends ConsumerStatefulWidget {
@@ -221,14 +223,18 @@ class _TakkaAppState extends ConsumerState<TakkaApp>
 
   Future<void> _checkForUpdatesAutomatically() async {
     try {
+      await _initializeSoundService();
+      await SoundService.instance.reconcileNativeAlarmState();
+      if (!mounted || SoundService.instance.activeAlarm.value != null) return;
       final release = await AppUpdateService.instance.checkAutomatically();
       if (release == null || !mounted) return;
       final context = rootNavigatorKey.currentContext;
       if (context == null || !context.mounted) return;
-      await AppUpdateService.instance
-          .markAutomaticallyPrompted(release.tagName);
       if (!mounted || !context.mounted) return;
-      await showUpdateAvailableDialog(context, release);
+      final shown = await showUpdateAvailableDialog(context, release);
+      if (shown) {
+        await AppUpdateService.instance.recordAutomaticCheckCompleted();
+      }
     } catch (error, stackTrace) {
       // Automatic update checks are best-effort; never interrupt normal use.
       debugPrint(
@@ -239,6 +245,7 @@ class _TakkaAppState extends ConsumerState<TakkaApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(SoundService.instance.reconcileNativeAlarmState());
       WidgetUpdater.refresh(widget.repo);
       unawaited(_refreshNotificationsOnResume());
     }

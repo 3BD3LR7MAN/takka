@@ -125,7 +125,8 @@ class HomeShell extends ConsumerWidget {
                                       width: 48,
                                       height: 48,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: .16),
+                                        color:
+                                            Colors.white.withValues(alpha: .16),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: const Icon(
@@ -201,9 +202,12 @@ class HomeShell extends ConsumerWidget {
                                           if (current == null) return;
                                           final minutes = SoundService
                                               .instance.snoozeDurationMinutes;
+                                          var scheduled = false;
                                           try {
-                                            await NotificationService.instance
-                                                .scheduleSnoozeAlarm(
+                                            scheduled =
+                                                await NotificationService
+                                                    .instance
+                                                    .scheduleSnoozeAlarm(
                                               eventId: current.eventId,
                                               title: current.title,
                                               location: current.location,
@@ -217,6 +221,7 @@ class HomeShell extends ConsumerWidget {
                                           }
                                           SoundService.instance.snoozeAlarm(
                                             minutes: minutes,
+                                            backgroundScheduled: scheduled,
                                           );
                                         },
                                         icon: const Icon(Icons.snooze_rounded),

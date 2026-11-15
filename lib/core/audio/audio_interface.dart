@@ -27,6 +27,8 @@ abstract class AudioPlatformBridge {
     required int fireAtMillis,
   });
   Future<void> cancelBackgroundAlarm(int alarmId);
+  Future<void> cancelBackgroundAlarmsForEvent(String eventId);
+  Future<Map<String, Object?>?> getActiveBackgroundAlarm();
   Future<Map<String, String>?> pickAlarmSound();
   Future<void> clearCustomAlarmSound();
 }

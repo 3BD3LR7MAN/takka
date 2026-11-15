@@ -285,11 +285,24 @@ class AppStrings {
         'Could not check GitHub Releases. Check your connection and make sure the Takka repository has a published release and is publicly accessible.',
         'تعذر التحقق من إصدارات GitHub. تحقق من اتصالك ومن نشر إصدار لتكّة وإمكانية الوصول إلى المستودع للعامة.',
       );
+  String get updateNoRelease => _t(
+        'No public Takka release was found. Check that a release has been published.',
+        'لم يُعثر على إصدار عام لتكّة. تحقق من نشر إصدار جديد.',
+      );
+  String get updateRateLimited => _t(
+        'GitHub is temporarily limiting release checks. Please try again later.',
+        'يقيّد GitHub عمليات التحقق مؤقتًا. حاول مجددًا لاحقًا.',
+      );
   String updateAvailable(String version) => ar
       ? 'يتوفر تحديث جديد ($version)'
       : 'A new update is available ($version)';
   String get releaseNotes => _t('What’s new', 'ما الجديد');
   String get updateNow => _t('Download update', 'تنزيل التحديث');
+  String get viewRelease => _t('View release page', 'عرض صفحة الإصدار');
+  String get updateOpenFailed => _t(
+        'Could not open the download link. Open the Takka release page in your browser.',
+        'تعذر فتح رابط التنزيل. افتح صفحة إصدار تكّة في المتصفح.',
+      );
   String get later => _t('Later', 'لاحقًا');
   String get noReleaseNotes => _t('Open the release page for details.',
       'افتح صفحة الإصدار لمعرفة التفاصيل.');

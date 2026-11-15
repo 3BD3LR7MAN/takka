@@ -2,31 +2,24 @@
 
 ## Release flow
 
-1. Run `flutter pub get` and `dart run build_runner build --delete-conflicting-outputs`.
-2. Run `flutter analyze`, `flutter test`, and `flutter build apk --release`.
-3. Confirm that the APK is signed with the intended production certificate.
-4. Update `version:` in `pubspec.yaml` and keep the release notes aligned with it.
-5. Create a version tag such as `v1.0.0` and publish the GitHub Release.
-6. Verify the release asset checksum and install the APK on a physical Android device.
+1. Update `version:` in `pubspec.yaml` and keep it aligned with the app version stated in the GitHub release notes. Git tags and Android package versions must normally follow the same SemVer sequence so the in-app updater behaves predictably.
+2. Run `flutter pub get` and `dart run build_runner build --delete-conflicting-outputs` if dependencies or generated Drift code changed.
+3. Run `flutter analyze`, `flutter test`, and `flutter build apk --release`.
+4. Verify the APK version, archive integrity, and signing certificate. A debug-signed APK is for development or explicitly labeled new-install-only distribution, not a routine update.
+5. Create a semantic-version tag, publish matching release notes, and attach the intended APK and its SHA-256 file.
+6. Test update installation on a physical device with the same signing certificate as the prior release; test alarms, notifications, reboot recovery, Arabic RTL, and local sound playback.
 
-## Current release status
+## Current release: GitHub v1.0.2
 
-Takka v1.0.14 is version `1.0.14+15`. This release adds GitHub Releases update checks, a weekly calendar view, and the native Android alarm reliability work. A local release APK uses the Android debug-signing fallback when no production keystore is present; it is suitable for development validation only and must not be distributed as a production artifact.
+The `v1.0.2` GitHub release tag intentionally packages Android app build `1.0.15+16`. This tag/package mismatch is documented in the release notes; future releases should restore aligned versioning to keep Android's visible version and Takka's in-app update checks consistent.
 
-The production-signed build is handled by `.github/workflows/android-release.yml`. It runs manually or when a `v*` tag is pushed and requires the four repository Actions secrets below. The workflow restores the keystore only on the ephemeral runner, builds the signed APK, uploads it as an artifact, and removes the temporary signing files during cleanup.
+The attached APK is debug-signed and its certificate differs from the previously published v1.0.1 APK. It is therefore **new-install-only**, not an in-place update. Installing over an existing Takka build requires uninstalling first; app-local data may be removed. The release notes should carry this notice wherever the APK is distributed.
 
-| Secret | Required value |
-|---|---|
-| `KEYSTORE_BASE64` | Base64 contents of the private `.jks` file |
-| `STORE_PASSWORD` | Keystore password |
-| `KEY_PASSWORD` | Key password |
-| `KEY_ALIAS` | Signing key alias |
+The previous GitHub production-signing workflow failed because the repository lacked `KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIAS`. The workflow remains available for manual use after the owner configures protected Actions secrets. Never commit a keystore, `key.properties`, passwords, or a Base64 export.
 
-Never commit a keystore, `key.properties`, password, or Base64 export. See [GITHUB_SIGNING.md](GITHUB_SIGNING.md) for the secure setup procedure.
+## CI configuration
 
-## Post-build checks
-
-Verify the artifact exists, inspect its certificate with `apksigner verify --print-certs`, record the SHA-256 checksum, and test installation on a physical Android device. Exercise immediate and scheduled notifications, reboot recovery, Arabic RTL layout, AI proposal confirmation, the home-screen widget, and light/dark themes.
+The repository's GitHub Actions workflows use Flutter `3.47.7`, the version used to validate the current source. The general build workflow runs analyzer/tests and builds an APK. The production-signed workflow is manually dispatched, because the signing secrets are not configured in the repository.
 
 ## Project identity
 

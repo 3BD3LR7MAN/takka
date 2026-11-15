@@ -105,6 +105,15 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(null)
                     }
+                    "cancelBackgroundAlarmsForEvent" -> {
+                        call.argument<String>("eventId")?.let {
+                            AlarmScheduler.cancelForEvent(this, it)
+                        }
+                        result.success(null)
+                    }
+                    "getActiveBackgroundAlarm" -> {
+                        result.success(AlarmScheduler.activeAlarm(this))
+                    }
                     "pickAlarmSound" -> {
                         if (pendingAlarmSoundPick != null) {
                             result.error("PICK_IN_PROGRESS", "An audio picker is already open", null)
