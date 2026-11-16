@@ -10,13 +10,13 @@
 
 ## Latest release
 
-[Takka v1.0.2](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.2) — Android build `1.0.15+16`
+[Takka v1.0.2](https://github.com/3BD3LR7MAN/takka/releases/tag/v1.0.2) — Android app version `1.0.2` (build code `17`)
 
 This build adds recurring events, a weekly calendar, per-event alarm choices, local alarm sounds, expanded background alarm support, and GitHub release update checks.
 
-> **Before installing:** this APK is debug-signed with a different certificate from the previous v1.0.1 APK, so Android cannot install it as an update. Trying it requires uninstalling the existing app first, which may erase schedules and settings stored on the device. If you need that data, do not uninstall to try this build; use an APK signed with the original production key for an in-place update.
+> **Before installing:** this exact APK is debug-signed with a different certificate from both the public v1.0.1 APK and the earlier 1.0.15+16 build. Android cannot install it over either; trying it requires uninstalling the current app, which may erase schedules and settings stored on the device. If that data matters, do not uninstall; a data-preserving update requires an APK signed with the same key as the installed app.
 
-> **Version labels:** the GitHub release tag is `v1.0.2`, but the APK reports app version `1.0.15+16`. The in-app updater compares these versions, so it may not offer this release to an installation that already reports `1.0.15`. Debug-signed and unsigned APKs are not offered as production updates.
+> **Version labels:** the GitHub release tag `v1.0.2` matches the APK's app version `1.0.2`. Android uses a separate integer build code, set to `17` to continue increasing from the prior code `16`. The in-app updater compares app versions, so it will not offer `1.0.2` as an update to an installation reporting `1.0.15` because that would be a downgrade.
 
 The update dialog shows release notes and opens an attached production APK directly when one is available; otherwise it opens the GitHub release page.
 
@@ -170,7 +170,8 @@ The current release does not include:
 | Application | Takka |
 | Dart package | `takka` |
 | Android application ID | `com.example.takka` |
-| Current version | `1.0.15+16` |
+| Current app version | `1.0.2` |
+| Android build code | `17` |
 | Minimum Android API | 23 |
 | Compile SDK | API 36 |
 | License | MIT |

@@ -11,9 +11,9 @@
 
 ## Current release: GitHub v1.0.2
 
-The `v1.0.2` GitHub release tag intentionally packages Android app build `1.0.15+16`. This tag/package mismatch is documented in the release notes; future releases should restore aligned versioning to keep Android's visible version and Takka's in-app update checks consistent.
+The `v1.0.2` GitHub release tag matches the Android app `versionName` `1.0.2`. Android's integer `versionCode` is `17`, kept higher than the previous build code `16`; future releases should continue increasing the code while keeping the tag and visible app version aligned.
 
-The attached APK is debug-signed and its certificate differs from the previously published v1.0.1 APK. It is therefore **new-install-only**, not an in-place update. Installing over an existing Takka build requires uninstalling first; app-local data may be removed. The release notes should carry this notice wherever the APK is distributed.
+The attached APK is debug-signed with certificate SHA-256 `6921408668C5303257C6DA672DB2F87B832B7932FB692028DBAD0B2B621AC004`. It differs from the public v1.0.1 APK (`4F3F96536D722495EADB534121A0C982F605859289648940C0963044C8C818A0`) and the earlier 1.0.15+16 APK (`510226E106E613EAF6C27B87B73E10007ABE39F3AA0D0AD8B07736E9FBE54C3A`), so it cannot update either installation in place. It is new-install-only for those builds. Uninstalling may remove app-local data; users who need their data should not uninstall to try it and should wait for an APK signed with the installed production key.
 
 The previous GitHub production-signing workflow failed because the repository lacked `KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIAS`. The workflow remains available for manual use after the owner configures protected Actions secrets. Never commit a keystore, `key.properties`, passwords, or a Base64 export.
 
