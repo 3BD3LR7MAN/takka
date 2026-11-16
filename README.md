@@ -14,9 +14,9 @@
 
 This build adds recurring events, a weekly calendar, per-event alarm choices, local alarm sounds, expanded background alarm support, and GitHub release update checks.
 
-> **Before installing:** this APK is debug-signed. Android can install it over an existing Takka app only if its signing certificate matches. If Android requires you to uninstall the existing app, that may erase schedules and settings stored on the device. If that data matters, do not uninstall to try this build; a data-preserving update requires an APK signed with the same key as the installed app.
+> **Before installing:** this exact APK is debug-signed with a different certificate from both the public v1.0.1 APK and the earlier 1.0.15+16 build. Android cannot install it over either; trying it requires uninstalling the current app, which may erase schedules and settings stored on the device. If that data matters, do not uninstall; a data-preserving update requires an APK signed with the same key as the installed app.
 
-> **Version labels:** the GitHub release tag `v1.0.2` now matches the APK's app version `1.0.2`. Android uses a separate integer build code, set to `17` to continue increasing from the prior build code `16`.
+> **Version labels:** the GitHub release tag `v1.0.2` matches the APK's app version `1.0.2`. Android uses a separate integer build code, set to `17` to continue increasing from the prior code `16`. The in-app updater compares app versions, so it will not offer `1.0.2` as an update to an installation reporting `1.0.15` because that would be a downgrade.
 
 The update dialog shows release notes and opens an attached production APK directly when one is available; otherwise it opens the GitHub release page.
 
